@@ -1,0 +1,71 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["referentialIntegrity"]
+}
+
+datasource db {
+  provider             = "mysql"
+  url                  = env("DATABASE_URL")
+  referentialIntegrity = "prisma"
+}
+
+model Post {
+  id               Int                 @id @default(autoincrement()) // id
+  slug             String // slug
+  createdAt        DateTime            @default(now()) // date_gmt
+  updatedAt        DateTime            @updatedAt // modified_gmt
+  title            String              @db.Text // title
+  content          String              @db.LongText // content.rendered
+  author           User                @relation(fields: [authorId], references: [id])
+  authorId         Int // author
+  categories       CategoriesOnPosts[] // categories
+  tags             TagsOnPosts[] // tags
+  featuredMediaUrl String? // jetpack_featured_media_url
+
+  @@index(authorId)
+}
+
+model User {
+  id          Int     @id @default(autoincrement())
+  slug        String
+  name        String
+  description String?
+  posts       Post[]
+}
+
+model Category {
+  id          Int                 @id @default(autoincrement())
+  slug        String
+  name        String
+  description String?
+  posts       CategoriesOnPosts[]
+}
+
+model Tag {
+  id          Int           @id @default(autoincrement())
+  slug        String
+  name        String
+  description String?
+  posts       TagsOnPosts[]
+}
+
+model CategoriesOnPosts {
+  post       Post     @relation(fields: [postId], references: [id])
+  postId     Int
+  category   Category @relation(fields: [categoryId], references: [id])
+  categoryId Int
+
+  @@id([postId, categoryId])
+}
+
+model TagsOnPosts {
+  post   Post @relation(fields: [postId], references: [id])
+  postId Int
+  tag    Tag  @relation(fields: [tagId], references: [id])
+  tagId  Int
+
+  @@id([postId, tagId])
+}
