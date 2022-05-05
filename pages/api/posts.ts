@@ -12,7 +12,13 @@ export default async function assetHandler(
   switch (method) {
     case "GET":
       try {
-        const posts = await prisma.post.findMany();
+        const posts = await prisma.post.findMany({
+          where: {
+            createdAt: {
+              gte: new Date("2022-03-31T18:00:00+0900"),
+            },
+          },
+        });
         res.status(200).json(posts);
       } catch (e) {
         console.error("Request error", e);

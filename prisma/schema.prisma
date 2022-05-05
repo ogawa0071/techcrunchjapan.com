@@ -14,7 +14,7 @@ datasource db {
 
 model Post {
   id               Int                 @id @default(autoincrement()) // id
-  slug             String // slug
+  slug             String              @unique // slug
   createdAt        DateTime            @default(now()) // date_gmt
   updatedAt        DateTime            @updatedAt // modified_gmt
   title            String              @db.Text // title
@@ -30,25 +30,25 @@ model Post {
 
 model User {
   id          Int     @id @default(autoincrement())
-  slug        String
+  slug        String  @unique
   name        String
-  description String?
+  description String? @db.Text
   posts       Post[]
 }
 
 model Category {
   id          Int                 @id @default(autoincrement())
-  slug        String
+  slug        String              @unique
   name        String
-  description String?
+  description String?             @db.Text
   posts       CategoriesOnPosts[]
 }
 
 model Tag {
   id          Int           @id @default(autoincrement())
-  slug        String
+  slug        String        @unique
   name        String
-  description String?
+  description String?       @db.Text
   posts       TagsOnPosts[]
 }
 

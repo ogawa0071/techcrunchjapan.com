@@ -1,0 +1,208 @@
+/*! TechCrunch - v0.2.0 - * https://techcrunch.com/
+* Copyright (c) 2019 AOL, Inc. */
+(function (window, $, tclfConv, undefined) {
+	var customStrings,
+			lf_config,
+			loaded = false,
+			TechCrunch = window.TechCrunch;
+
+	function _load() {
+		loaded = true;
+		var authDelegate = new window.fyre.conv.SPAuthDelegate({engage: {app: tclfConv.app, type: "redirect"}, profiles: {type: "redirect"}});
+		window.conv = window.fyre.conv.load({
+			network     : tclfConv.network,
+			authDelegate: authDelegate,
+			strings     : customStrings
+		}, lf_config, function (widget) {
+			var onAction = function (commentCount) {
+				if (undefined !== TechCrunch.refreshedCommentCount) {
+					TechCrunch.refreshedCommentCount(commentCount);
+				}
+			};
+			widget.on('commentCountUpdated', onAction);
+			widget.on('commentPosted', function () {
+				onAction(1);
+			});
+		});
+	}
+
+	function loadLFConversation() {
+		if (TechCrunch.size.isSmall()) {
+			var $window = $(window);
+			window.setTimeout(function () {
+				$window.on('scroll.lazycomments', function () {
+					$window.off('scroll.lazycomments');
+					_load();
+				});
+			}, 2000);
+		} else {
+			window.setTimeout(_load, 1);
+		}
+	}
+
+	if (undefined !== tclfConv) {
+		var tclfjsLoaded = false,
+				tclfCustomProfilesLoaded = false;
+		lf_config = JSON.parse(tclfConv.lf_config);
+		customStrings = JSON.parse(tclfConv.customStrings);
+
+		TechCrunch.loader.on('tc_lf_js', function () {
+			tclfjsLoaded = true;
+			if (tclfCustomProfilesLoaded) {
+				loadLFConversation();
+			}
+		});
+		TechCrunch.loader.on('tc_lf_custom_profiles', function () {
+			tclfCustomProfilesLoaded = true;
+			if (tclfjsLoaded) {
+				loadLFConversation();
+			}
+		});
+	}
+}(this, this.jQuery, this.tclfConv));
+
+(function() {
+    (function(jQuery) {
+        'use strict';
+        var $;
+        $ = jQuery;
+        return $.fn.popnSocialButton = function(services, options) {
+            var exOptions, iconSize, idx, mkYQL, popnUp, sName, scheme, servicesProp, _addLink, _i, _len;
+            if (options == null) {
+                options = {};
+            }
+
+            exOptions = $.extend({}, {
+                url: document.location.href,
+                text: encodeURIComponent($('title').html()),
+                buttonSpace: 3,
+                countPosition: { top: 32,right: -12 },
+                countColor: { text: '#ffffff', bg: '#cc0000', textHover: '#ffffff', bgHover: '#ff6666', border: '#ffffff'},
+                countSize: 11,
+                popupWindow: {width: 640, height: 480 }
+            }, options);
+
+            exOptions.urlOrg = exOptions.url;
+            exOptions.url = encodeURIComponent(exOptions.urlOrg);
+            iconSize = 44;
+            popnUp = 4;
+            scheme = /https/.test(document.location.protocol) ? 'https' : 'http';
+
+            mkYQL = function(url, wantJson) {
+                var yUrl;
+                if (wantJson == null) { wantJson = false; }
+                yUrl = "" + scheme + "://query.yahooapis.com/v1/public/yql?env=http://datatables.org/alltables.env&q=" + (encodeURIComponent("SELECT content FROM data.headers WHERE url='" + url + "' and ua='Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 5.1)'"));
+                if (wantJson) { yUrl += '&format=json'; }
+                return yUrl;
+            };
+
+            servicesProp = {
+                twitter: {
+                    alt: 'Twitter Share Button',
+                    shareUrl: "https://twitter.com/share?url=" + exOptions.url + "&text=" + exOptions.text + "&via=jptechcrunch",
+                    jpText:"ツイート",
+                    commentUrl: "https://twitter.com/search/?q=" + exOptions.url,
+                    countUrl: "List",
+                    jsonpFunc: function(json, cb) {
+                        var _ref;
+                        return cb((_ref = json.count) != null ? _ref : 0);
+                    }
+                },
+                facebook: {
+                    alt: 'Facebook Share Button',
+                    shareUrl: "https://www.facebook.com/sharer.php?u=" + exOptions.url + "&t=" + exOptions.text,
+                    jpText:"シェア",
+                    countUrl: "Facebook"
+                },
+                hatebu: {
+                    alt: 'Hatena Bookmark Share Button',
+                    shareUrl: "http://b.hatena.ne.jp/add?mode=confirm&url=" + exOptions.url + "&title=" + exOptions.text + "&mode=confirm",
+                    jpText:"はてな",
+                    commentUrl: "https://b.hatena.ne.jp/entry/" + exOptions.urlOrg,
+                    countUrl: "https://b.hatena.ne.jp/entry.count?url=" + exOptions.url,
+                    jsonpFunc: function(json, cb) {
+                        return cb(json != null ? json : 0);
+                    }
+                },
+            };
+            _addLink = (function(_this) {
+                return function(name, prop, idx) {
+                    var countTag, countTagType, shareTag, wrapTag, wrapTagButtom, countTagButtom, shareTagButtom;
+                    var $that = $('.social-button-bottom');
+
+                    wrapTag = $('<li/>').attr({ "class": "popn-socialbutton-wrap " + name }).css({ fontSize: '12px', textAlign: 'center', width: 'auto', height: 'auto' });
+                    if (idx > 0) {
+                        wrapTag.css({ marginLeft: exOptions.buttonSpace });
+                    }
+
+                    shareTag = $('<a/>').attr({ href: prop.shareUrl, "class": 'popn-socialbutton-share', target: '_blank' }).css({
+                        outline: 'none', lineHeight: '28px', display: 'block', minWidth: '36px', color: '#fff', whiteSpace: 'nowrap', padding:'0 1em', width: 'auto'
+                    }).text(prop.jpText);
+
+                    countTagType = prop.commentUrl ? 'a' : 'div';
+                    if (prop.countUrl !== 'Facebook') {
+                        countTag = $("<" + countTagType + "/>").attr({ "class": 'popn-socialbutton-count' });
+                        countTag.css($.extend({}, { position: 'relative', color: '#ccc', lineHeight: '27px', height: '28px', backgroundColor: '#fff', border: "1px solid #d9d9d9", marginBottom: '6px', minWidth: '36px' }));
+                    } else {
+                        countTag = $("<" + countTagType + "/>").attr({ "class": 'popn-socialbutton-count-fb' });
+                        countTag.css($.extend({}, { position: 'relative', color: '#ccc', lineHeight: '27px', height: '28px', marginBottom: '6px', minWidth: '36px' }));
+                    }
+
+                    if (countTagType === 'a'){
+						countTag.attr({href: prop.commentUrl,target:'_blank'});
+					}else{countTag.css({cursor: 'default'});}
+
+					countTagButtom = countTag.clone();
+                    shareTagButtom = shareTag.clone();
+                    wrapTagButtom = wrapTag.clone();
+
+					wrapTag.append(countTag).append(shareTag);
+					wrapTagButtom.append(countTagButtom).append(shareTagButtom);
+
+                    $(_this).append(wrapTag);
+                    $that.append(wrapTagButtom);
+                    if((prop.countUrl !== 'List') && (prop.countUrl !== 'Facebook')){
+                        return $.ajax({
+                            url: prop.countUrl,
+                            dataType: 'jsonp'
+                        }).done(function(json) {
+                            return prop.jsonpFunc(json, function(count) {
+                                countTag.show().text(count);
+                                countTagButtom.show().text(count);
+                                return;
+                            });
+                        });
+                    } else{
+                        if (prop.countUrl === 'Facebook') {
+                            // countTag.show().text(prop.count);
+                            countTagButtom.show().text(prop.count);
+                        } else {
+                            //TODO - fix twitter count 
+                            countTag.show().text(prop.countUrl);
+                            countTagButtom.show().text(prop.countUrl);
+                        }
+                        return;
+                    }
+                };
+            })(this);
+            for (idx = _i = 0, _len = services.length; _i < _len; idx = ++_i) {
+                sName = services[idx];
+                if (servicesProp[sName] != null) {
+                    _addLink(sName, servicesProp[sName], idx);
+                }
+            }
+
+            $('.social-button-bottom, .social-button').find('.popn-socialbutton-share').click(function() {
+                var left, top;
+                if (/(github|feedly)/.test($(this).parent().attr('class'))) {
+                    return true;
+                }
+                top = (screen.height / 2) - (exOptions.popupWindow.height / 2);
+                left = (screen.width / 2) - (exOptions.popupWindow.width / 2);
+                window.open(this.href, '', "width=" + exOptions.popupWindow.width + ", height=" + exOptions.popupWindow.height + ", top=" + top + ", left=" + left);
+                return false;
+            });
+        };
+    })(this.jQuery);
+
+}).call(this);
