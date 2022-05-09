@@ -7,6 +7,7 @@ import GlobalHead from 'components/Head'
 import Article from 'components/Article'
 import { Post } from 'pages/index'
 import ArticleSidebar from 'components/ArticleSidebar'
+import { dateToUrl, dateToString } from 'lib/date'
 
 const PostPage: NextPage<{
   post: Post
@@ -69,13 +70,26 @@ export const getStaticProps: GetStaticProps<{
     },
   })
 
-  return {
-    props: {
-      post: JSON.parse(JSON.stringify(post)),
-      latestPosts: JSON.parse(JSON.stringify(latestPosts)),
-    },
-    notFound: post ? false : true,
-  }
+  return post
+    ? {
+        props: {
+          post: {
+            ...post,
+            link: `${dateToUrl(post.createdAt)}/${post.slug}`,
+            createdAtString: dateToString(post.createdAt),
+            updatedAtString: dateToString(post.updatedAt),
+          },
+          latestPosts: latestPosts.map((post) => ({
+            ...post,
+            link: `${dateToUrl(post.createdAt)}/${post.slug}`,
+            createdAtString: dateToString(post.createdAt),
+            updatedAtString: dateToString(post.updatedAt),
+          })),
+        },
+      }
+    : {
+        notFound: true,
+      }
 }
 
 export async function getStaticPaths() {

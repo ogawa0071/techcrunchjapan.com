@@ -1,58 +1,58 @@
+import { dateToString, dateToUrl } from 'lib/date'
 import type { NextPage } from 'next'
+import Link from 'next/link'
 import type { Post } from 'pages/index'
+import Sidebar from './Sidebar'
 
 const Home: NextPage<{
   posts: Post[]
 }> = ({ posts }) => {
   return (
     <>
-      <div className="fluid flush split homepage">
+      <div role="main" className="fluid flush split homepage">
         <div className="lc flush lc-island">
           <div className="l-two-col">
             <div className="l-main-container">
               <div className="l-main">
                 <div className="island plain-island">
                   <div className="plain-feature block block-inset">
-                    <a
-                      // TODO
-                      href={`/${posts?.[0].slug}`}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        className="thumb"
-                        src={`${posts?.[0].featuredMediaUrl}?w=474&h=350&crop=1`}
-                        alt=""
-                      />
-                      <div className="block-title">
-                        <h2>{posts?.[0].title}</h2>
-                        <div className="byline">
-                          by {posts?.[0].author.name}
+                    <Link href={posts?.[0].link}>
+                      <a>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          className="thumb"
+                          src={`${posts?.[0].featuredMediaUrl}?w=474&h=350&crop=1`}
+                          alt=""
+                        />
+                        <div className="block-title">
+                          <h2>{posts?.[0].title}</h2>
+                          <div className="byline">
+                            by {posts?.[0].author.name}
+                          </div>
                         </div>
-                      </div>
-                    </a>
+                      </a>
+                    </Link>
                   </div>
                   <ul className="plain-item-list">
-                    {/* MARK: LOOP */}
                     {posts?.slice(1, 4).map((post) => (
                       <li
                         className="plain-item block block-small"
                         key={post.id}
                       >
-                        <a
-                          // TODO
-                          href={`/${post.slug}`}
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            className="thumb"
-                            src={`${post.featuredMediaUrl}?w=145&h=90&crop=1`}
-                            alt=""
-                          />
-                          <div className="plain-title">
-                            <h2 className="h-alt">{post.title}</h2>
-                            <p className="byline">by {post.author.name}</p>
-                          </div>
-                        </a>
+                        <Link href={post.link}>
+                          <a>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              className="thumb"
+                              src={`${post.featuredMediaUrl}?w=145&h=90&crop=1`}
+                              alt=""
+                            />
+                            <div className="plain-title">
+                              <h2 className="h-alt">{post.title}</h2>
+                              <p className="byline">by {post.author.name}</p>
+                            </div>
+                          </a>
+                        </Link>
                       </li>
                     ))}
                   </ul>
@@ -68,63 +68,52 @@ const Home: NextPage<{
                   </div>
                 </div>
                 <ul className="river lc-padding">
-                  {/* MARK: LOOP */}
                   {posts?.map((post) => (
                     <li className="river-block" key={post.id}>
                       <div className="block block-thumb">
-                        {post.categories.map((category) => (
-                          <div className="tags" key={category.categoryId}>
-                            <a
-                              href={`/${category.category.slug}`}
-                              className="tag"
-                            >
-                              <span>{category.category.name}</span>
-                            </a>
+                        {post.categories.map(({ category }) => (
+                          <div className="tags" key={category.id}>
+                            <Link href={`/${category.slug}`}>
+                              <a className="tag">
+                                <span>{category.name}</span>
+                              </a>
+                            </Link>
                           </div>
                         ))}
                         <div className="block-content">
                           <span>
-                            <a
-                              // TODO
-                              href={`/${post.slug}`}
-                              className="thumb"
-                            >
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={`${post.featuredMediaUrl}?w=210&h=158&crop=1`}
-                                alt=""
-                              />
-                            </a>
+                            <Link href={post.link}>
+                              <a className="thumb">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={`${post.featuredMediaUrl}?w=210&h=158&crop=1`}
+                                  alt=""
+                                />
+                              </a>
+                            </Link>
                           </span>
 
                           <h2 className="post-title">
-                            <a
-                              // TODO
-                              href={`/${post.slug}`}
-                            >
-                              {post.title}
-                            </a>
+                            <Link href={post.link}>
+                              <a>{post.title}</a>
+                            </Link>
                           </h2>
                           <div className="byline">
                             <time className="timestamp">
-                              {`${post.createdAt}`}
+                              {post.createdAtString}
                             </time>
                             by
-                            <a href={`/${post.author.slug}`}>
-                              {post.author.name}
-                            </a>
+                            <Link href={`/${post.author.slug}`}>
+                              <a>{post.author.name}</a>
+                            </Link>
                           </div>
                           <p className="excerpt">
                             {/* // TODO */}
                             {post.content.slice(0, 270)}
                             &hellip;
-                            <a
-                              // TODO
-                              href={`/${post.slug}`}
-                              className="read-more"
-                            >
-                              続きを読む
-                            </a>
+                            <Link href={post.link}>
+                              <a className="read-more">続きを読む</a>
+                            </Link>
                           </p>
                           <div style={{ clear: 'both' }}></div>
                         </div>
@@ -134,6 +123,7 @@ const Home: NextPage<{
                 </ul>
               </div>
             </div>
+            <Sidebar />
           </div>
         </div>
         {/* TODO: load more */}

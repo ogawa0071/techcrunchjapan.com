@@ -1,4 +1,5 @@
 import type { NextPage } from 'next'
+import Link from 'next/link'
 import { Post } from 'pages/index'
 
 const ArticleSidebar: NextPage<{
@@ -12,7 +13,9 @@ const ArticleSidebar: NextPage<{
           {post.categories.map((category) => (
             <li key={category.categoryId}>
               <div className="acc-handle">
-                <a href={category.category.slug}>{category.category.id}</a>
+                <Link href={category.category.slug}>
+                  <a>{category.category.id}</a>
+                </Link>
               </div>
             </li>
           ))}
@@ -20,34 +23,38 @@ const ArticleSidebar: NextPage<{
             <div className="acc-handle loaded">
               <a>人気</a>
             </div>
-            <div className="fluid flush split homepage">
+            <div role="main" className="fluid flush split homepage">
               <div>
                 <div>
                   <div className="l-main-container">
                     <div className="l-main">
                       <ul className="river lc-padding">
-                        {/* LOOP 20 */}
-                        {latestPosts?.map((post) => (
+                        {latestPosts.map((post) => (
                           <li className="popular-items" key={post.id}>
                             <div className="popular-main-container">
                               <div className="popular-sub-container">
                                 <span>
                                   <div className="popular-image">
-                                    <a href="" className="thumb">
-                                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                                      <img
-                                        src={post.featuredMediaUrl || ''}
-                                        alt=""
-                                      />
-                                    </a>
+                                    <Link href={post.link}>
+                                      <a className="thumb">
+                                        {/* TODO: デフォルト画像を設定 */}
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                          src={post.featuredMediaUrl || ''}
+                                          alt=""
+                                        />
+                                      </a>
+                                    </Link>
                                   </div>
                                 </span>
                                 <h2 className="popular-post-title">
-                                  <a href="">{post.title}</a>
+                                  <Link href={post.link}>
+                                    <a>{post.title}</a>
+                                  </Link>
                                 </h2>
                                 <div className="popular-byline">
                                   <time className="popular-timestamp">
-                                    2022年3月31日
+                                    {post.createdAtString}
                                   </time>
                                 </div>
                                 <div style={{ clear: 'both' }}></div>

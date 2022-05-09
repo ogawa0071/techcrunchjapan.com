@@ -1,5 +1,5 @@
 import { GetStaticProps } from 'next'
-import type { NextPage } from 'next'
+import type { NextPage, InferGetStaticPropsType } from 'next'
 import Header from 'components/Header'
 import Footer from 'components/Footer'
 import GlobalHead from 'components/Head'
@@ -13,6 +13,7 @@ import {
   Tag,
 } from '@prisma/client'
 import { default as HomeComponent } from 'components/Home'
+import { dateToUrl, dateToString } from 'lib/date'
 
 export interface Post extends Post_ {
   author: User
@@ -22,11 +23,12 @@ export interface Post extends Post_ {
   tags: (TagsOnPosts & {
     tag: Tag
   })[]
+  link: string
+  createdAtString: string
+  updatedAtString: string
 }
 
-const Home: NextPage<{
-  posts: Post[]
-}> = ({ posts }) => {
+const Home: NextPage<{ posts: Post[] }> = ({ posts }) => {
   return (
     <div>
       <GlobalHead />
@@ -50,6 +52,11 @@ export const getStaticProps: GetStaticProps<{
           category: true,
         },
       },
+      tags: {
+        include: {
+          tag: true,
+        },
+      },
     },
     take: 20,
     orderBy: {
@@ -58,7 +65,13 @@ export const getStaticProps: GetStaticProps<{
   })
 
   return {
-    props: { posts: JSON.parse(JSON.stringify(posts)) },
-    notFound: posts ? false : true,
+    props: {
+      posts: posts.map((post) => ({
+        ...post,
+        link: `${dateToUrl(post.createdAt)}/${post.slug}`,
+        createdAtString: dateToString(post.createdAt),
+        updatedAtString: dateToString(post.updatedAt),
+      })),
+    },
   }
 }
