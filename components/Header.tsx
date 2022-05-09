@@ -1,4 +1,5 @@
-import type { NextPage } from "next";
+import type { NextPage } from 'next'
+import Link from 'next/link'
 
 const Header: NextPage = () => {
   return (
@@ -15,130 +16,36 @@ const Header: NextPage = () => {
             >
               <span className="is-vishidden">Menu</span>
             </a>
-            <a
-              href="https://jp.techcrunch.com/"
-              className="logo-link"
-              title="TechCrunch"
-              data-omni-sm="gbl_topnav"
+            <Link
+              href="/"
+              // className="logo-link"
+              // title="TechCrunch"
+              // data-omni-sm="gbl_topnav"
             >
-              <img
-                src="../../../../wp-content/uploads/2020/02/tc_logo180x90.png"
-                alt="TechCrunch"
-                className="logo"
-                // scale="0"
-              />
-            </a>
-            <a
+              <a
+                href=""
+                className="logo-link"
+                title="TechCrunch"
+                data-omni-sm="gbl_topnav"
+              >
+                <img
+                  src="/wp-content/uploads/2020/02/tc_logo180x90.png"
+                  alt="TechCrunch"
+                  className="logo"
+                  // scale="0"
+                />
+              </a>
+            </Link>
+            {/* <a
               href="index.html#"
               className="trending-nav-mobile icon-rocketship"
             >
               <img
-                src="../../../../wp-content/themes/techcrunch-jp-2015/assets/images/rocket-icon.svg"
+                src="/wp-content/themes/techcrunch-jp-2015/assets/images/rocket-icon.svg"
                 alt="Most Popular"
               />
-            </a>
-            {/* <!-- <a href="#" className="toggle-link search-form-toggle icon-mag"><span className="is-vishidden">検索</a> --> */}
-            <div className="header-logo-bar cf">
-              <div className="header-social">
-                <ul className="inline-list social-list sprite-social">
-                  <li className="nav-followus">フォローする</li>
-
-                  <li className="nav-aux facebook">
-                    <a
-                      href="https://www.facebook.com/techcrunchjapan"
-                      rel="external noreferrer"
-                      className="spricon i-facebook"
-                      target="_blank"
-                    >
-                      <span className="is-vishidden">Facebook</span>
-                    </a>
-                  </li>
-                  <li className="nav-aux twitter">
-                    <a
-                      href="https://twitter.com/jptechcrunch"
-                      rel="external noreferrer"
-                      className="spricon i-twitter"
-                      target="_blank"
-                    >
-                      <span className="is-vishidden">Twitter</span>
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="https://b.hatena.ne.jp/entry/jp.techcrunch.com/"
-                      rel="external noreferrer"
-                      className="spricon i-hetena jpsocial"
-                      target="_blank"
-                    >
-                      <span className="is-vishidden">Hetena</span>
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="https://plus.google.com/102952193691073064207/"
-                      rel="external noreferrer"
-                      className="spricon i-google-plus"
-                      target="_blank"
-                    >
-                      <span className="is-vishidden">Google+</span>
-                    </a>
-                  </li>
-
-                  <li className="nav-aux rss">
-                    <a
-                      href="https://jp.techcrunch.com/feed/"
-                      className="spricon i-feed"
-                    >
-                      <span className="is-vishidden">RSS</span>
-                    </a>
-                  </li>
-                  <li className="nav-social-more">
-                    <a href="index.html#" className="icon-caret-down">
-                      <span className="is-vishidden">&rarr; 続きを読む</span>
-                    </a>
-                    <ul>
-                      <li className="facebook">
-                        <a
-                          href="https://www.facebook.com/techcrunchjapan"
-                          rel="external noreferrer"
-                          className="spricon i-facebook"
-                          target="_blank"
-                        >
-                          <span className="is-vishidden">Facebook</span>
-                        </a>
-                      </li>
-                      <li className="twitter">
-                        <a
-                          href="https://twitter.com/jptechcrunch"
-                          rel="external noreferrer"
-                          className="spricon i-twitter"
-                          target="_blank"
-                        >
-                          <span className="is-vishidden">Twitter</span>
-                        </a>
-                      </li>
-                      <li className="rss">
-                        <a
-                          href="https://jp.techcrunch.com/feed/"
-                          className="spricon i-feed"
-                        >
-                          <span className="is-vishidden">RSS</span>
-                        </a>
-                      </li>
-                    </ul>
-                  </li>
-                </ul>
-
-                <div className="header-tip">
-                  <a
-                    href="https://jp.techcrunch.com/got-a-tip/"
-                    data-omni-sm="gbl_topnav"
-                  >
-                    情報提供はこちらから！
-                  </a>
-                </div>
-              </div>
-
+            </a> */}
+            {/* <div className="header-logo-bar cf">
               <nav className="nav-primary">
                 <ul className="nav" id="nav">
                   <li className="nav-level1 nav-news">
@@ -246,19 +153,8 @@ const Header: NextPage = () => {
                         </ul>
                       </ul>
                     </div>
-                  </li>
-                  {/* <!--li className="nav-level nav-shows"> */}
-                  {/* <a href="/video/" className="nav-parent">動画</a> */}
-                  {/* </li--> */}
-                  <li className="nav-level nav-events">
-                    <a
-                      href="https://jp.techcrunch.com/events/"
-                      className="nav-parent"
-                    >
-                      イベント
-                    </a>
-                  </li>
-                  <li className="nav-level nav-crunchbase">
+                  </li> */}
+            {/* <li className="nav-level nav-crunchbase">
                     <a
                       href="https://www.crunchbase.com"
                       className="nav-parent"
@@ -270,37 +166,12 @@ const Header: NextPage = () => {
                   </li>
                 </ul>
               </nav>
-              <form
-                action="https://jp.techcrunch.com/"
-                method="get"
-                className="search-form"
-              >
-                <fieldset>
-                  <legend>Search TechCrunch</legend>
-                  <label htmlFor="s">Search TechCrunch</label>
-                  <input
-                    type="search"
-                    placeholder="検索"
-                    className="search-field"
-                    name="s"
-                    value=""
-                  />
-                  <button className="search-submit">
-                    <span className="icon-mag" aria-hidden="true"></span>
-                    <span className="is-vishidden">Search</span>
-                  </button>
-                  <button className="search-close">
-                    <span className="icon-close" aria-hidden="true"></span>
-                    <span className="is-vishidden">Search</span>
-                  </button>
-                </fieldset>
-              </form>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
     </header>
-  );
-};
+  )
+}
 
-export default Header;
+export default Header
