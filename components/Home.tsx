@@ -6,7 +6,7 @@ const Home: NextPage<{
 }> = ({ posts }) => {
   return (
     <>
-      <div role="main" className="fluid flush split homepage">
+      <div className="fluid flush split homepage">
         <div className="lc flush lc-island">
           <div className="l-two-col">
             <div className="l-main-container">
@@ -16,11 +16,12 @@ const Home: NextPage<{
                     <a
                       // TODO
                       href={`/${posts?.[0].slug}`}
-                      data-omni-sm="hp_featureddl"
                     >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         className="thumb"
                         src={`${posts?.[0].featuredMediaUrl}?w=474&h=350&crop=1`}
+                        alt=""
                       />
                       <div className="block-title">
                         <h2>{posts?.[0].title}</h2>
@@ -40,11 +41,12 @@ const Home: NextPage<{
                         <a
                           // TODO
                           href={`/${post.slug}`}
-                          data-omni-sm="hp_featureddl"
                         >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             className="thumb"
                             src={`${post.featuredMediaUrl}?w=145&h=90&crop=1`}
+                            alt=""
                           />
                           <div className="plain-title">
                             <h2 className="h-alt">{post.title}</h2>
@@ -65,14 +67,10 @@ const Home: NextPage<{
                     </ul>
                   </div>
                 </div>
-                <ul className="river lc-padding" id="river1">
+                <ul className="river lc-padding">
                   {/* MARK: LOOP */}
                   {posts?.map((post) => (
-                    <li
-                      className="river-block"
-                      data-permalink="https://jp.techcrunch.com/2022/03/31/final/"
-                      key={post.id}
-                    >
+                    <li className="river-block" key={post.id}>
                       <div className="block block-thumb">
                         {post.categories.map((category) => (
                           <div className="tags" key={category.categoryId}>
@@ -85,14 +83,16 @@ const Home: NextPage<{
                           </div>
                         ))}
                         <div className="block-content">
-                          <span data-omni-sm-delegate="gbl_river_image,1">
+                          <span>
                             <a
                               // TODO
                               href={`/${post.slug}`}
                               className="thumb"
                             >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
                                 src={`${post.featuredMediaUrl}?w=210&h=158&crop=1`}
+                                alt=""
                               />
                             </a>
                           </span>
@@ -106,10 +106,7 @@ const Home: NextPage<{
                             </a>
                           </h2>
                           <div className="byline">
-                            <time
-                              dateTime="2022-03-31 06:00:49"
-                              className="timestamp"
-                            >
+                            <time className="timestamp">
                               {`${post.createdAt}`}
                             </time>
                             by
@@ -129,7 +126,7 @@ const Home: NextPage<{
                               続きを読む
                             </a>
                           </p>
-                          <div id="clear" style={{ clear: 'both' }}></div>
+                          <div style={{ clear: 'both' }}></div>
                         </div>
                       </div>
                     </li>

@@ -5,7 +5,7 @@ const GlobalHead: NextPage = () => {
   return (
     <>
       <Head>
-        <title>16年間のご愛読ありがとうございました。 | TechCrunch Japan</title>
+        <title>TechCrunch Japan</title>
         <meta
           name="viewport"
           content="initial-scale=1.0,width=device-width,user-scalable=no,minimum-scale=1.0,maximum-scale=1.0"
@@ -17,6 +17,7 @@ const GlobalHead: NextPage = () => {
 
         {/* META */}
 
+        {/* eslint-disable-next-line @next/next/no-css-tags */}
         <link rel="stylesheet" href="/index.css" />
       </Head>
     </>

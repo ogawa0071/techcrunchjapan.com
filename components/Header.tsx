@@ -3,17 +3,11 @@ import Link from 'next/link'
 
 const Header: NextPage = () => {
   return (
-    <header
-      className="header header-fixed-mobile cf header-context-null"
-      role="banner"
-    >
+    <header className="header header-fixed-mobile cf header-context-null">
       <div className="nav-bar">
         <div className="lc">
           <div className="lc">
-            <a
-              href="index.html#"
-              className="toggle-link nav-toggle icon-hamburger"
-            >
+            <a href="" className="toggle-link nav-toggle icon-hamburger">
               <span className="is-vishidden">Menu</span>
             </a>
             <Link
@@ -28,11 +22,11 @@ const Header: NextPage = () => {
                 title="TechCrunch"
                 data-omni-sm="gbl_topnav"
               >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/wp-content/uploads/2020/02/tc_logo180x90.png"
                   alt="TechCrunch"
                   className="logo"
-                  // scale="0"
                 />
               </a>
             </Link>
@@ -153,8 +147,8 @@ const Header: NextPage = () => {
                         </ul>
                       </ul>
                     </div>
-                  </li> */}
-            {/* <li className="nav-level nav-crunchbase">
+                  </li>
+                  <li className="nav-level nav-crunchbase">
                     <a
                       href="https://www.crunchbase.com"
                       className="nav-parent"
