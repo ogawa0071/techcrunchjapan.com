@@ -70,11 +70,11 @@ export const getStaticProps: GetStaticProps<{
     props: {
       posts: posts.map((post) => ({
         ...post,
-        link: `${dateToUrl(post.createdAt)}/${post.slug}`,
+        link: `${dateToUrl(post.createdAt)}/${post.slug}/`,
         createdAtString: dateToString(post.createdAt),
         updatedAtString: dateToString(post.updatedAt),
         contentString: Array.from(
-          new JSDOM(posts[0].content).window.document.body.children
+          new JSDOM(post.content).window.document.body.children
         )
           .map((e) => e.textContent)
           .join(''),

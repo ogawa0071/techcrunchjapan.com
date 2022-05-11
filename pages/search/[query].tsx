@@ -66,7 +66,7 @@ export const getStaticProps: GetStaticProps<{
     props: {
       posts: posts.map((post) => ({
         ...post,
-        link: `${dateToUrl(post.createdAt)}/${post.slug}`,
+        link: `${dateToUrl(post.createdAt)}/${post.slug}/`,
         createdAtString: dateToString(post.createdAt),
         updatedAtString: dateToString(post.updatedAt),
         contentString: Array.from(

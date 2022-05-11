@@ -17,6 +17,7 @@ import ArticleSidebar from 'components/ArticleSidebar'
 import { dateToUrl, dateToString } from 'lib/date'
 import { useEffect } from 'react'
 import { Post } from 'pages/index'
+import { JSDOM } from 'jsdom'
 
 const PostPage: NextPage<{
   post: Post
@@ -24,7 +25,12 @@ const PostPage: NextPage<{
 }> = ({ post, latestPosts }) => {
   return (
     <div>
-      <GlobalHead />
+      <GlobalHead
+        title={post?.title}
+        path={post?.link}
+        description={post?.contentString?.slice(0, 270)}
+        imagePath={`${post?.featuredMediaUrl}`}
+      />
       <Header />
       <Article post={post}>
         <ArticleSidebar post={post} latestPosts={latestPosts} />
@@ -91,13 +97,18 @@ export const getStaticProps: GetStaticProps<{
         props: {
           post: {
             ...post,
-            link: `${dateToUrl(post.createdAt)}/${post.slug}`,
+            link: `${dateToUrl(post.createdAt)}/${post.slug}/`,
             createdAtString: dateToString(post.createdAt),
             updatedAtString: dateToString(post.updatedAt),
+            contentString: Array.from(
+              new JSDOM(post.content).window.document.body.children
+            )
+              .map((e) => e.textContent)
+              .join(''),
           },
           latestPosts: latestPosts.map((post) => ({
             ...post,
-            link: `${dateToUrl(post.createdAt)}/${post.slug}`,
+            link: `${dateToUrl(post.createdAt)}/${post.slug}/`,
             createdAtString: dateToString(post.createdAt),
             updatedAtString: dateToString(post.updatedAt),
           })),
