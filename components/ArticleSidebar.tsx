@@ -13,7 +13,7 @@ const ArticleSidebar: NextPage<{
           {post.categories.map(({ category }) => (
             <li key={category.id}>
               <div className="acc-handle">
-                <Link href={`/${category.slug}`}>
+                <Link href={`/category/${category.slug}`}>
                   <a>{category.name}</a>
                 </Link>
               </div>

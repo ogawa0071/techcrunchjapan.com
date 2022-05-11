@@ -63,6 +63,7 @@ export const getStaticProps: GetStaticProps<{
         orderBy: {
           createdAt: 'desc',
         },
+        take: 100,
       },
     },
   })

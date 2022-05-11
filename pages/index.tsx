@@ -60,10 +60,10 @@ export const getStaticProps: GetStaticProps<{
         },
       },
     },
-    take: 20,
     orderBy: {
       createdAt: 'desc',
     },
+    take: 20,
   })
 
   return {

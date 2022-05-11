@@ -3,49 +3,49 @@ import Header from 'components/Header'
 import Footer from 'components/Footer'
 import GlobalHead from 'components/Head'
 import {
-  Tag as _Tag,
+  Tag,
   TagsOnPosts,
   Post,
   User,
   CategoriesOnPosts,
-  Category,
+  Category as _Category,
 } from '@prisma/client'
 import { prisma } from 'lib/prisma'
 
-interface Tag extends _Tag {
-  posts: (TagsOnPosts & {
+interface Category extends _Category {
+  posts: (CategoriesOnPosts & {
     post: Post & {
       author: User
       categories: (CategoriesOnPosts & {
-        category: Category
+        category: _Category
       })[]
       tags: (TagsOnPosts & {
-        tag: _Tag
+        tag: Tag
       })[]
     }
   })[]
 }
 
-const TagPage: NextPage<{ tag: Tag }> = ({ tag }) => {
+const CategoryPage: NextPage<{ category: Category }> = ({ category }) => {
   return (
     <div>
       <GlobalHead />
       <Header />
-      <div>Tagページはアーカイブ作成中です。</div>
+      <div>Categoryページはアーカイブ作成中です。</div>
       <div>
-        <pre>{JSON.stringify(tag, null, 2)}</pre>
+        <pre>{JSON.stringify(category, null, 2)}</pre>
       </div>
       <Footer />
     </div>
   )
 }
 
-export default TagPage
+export default CategoryPage
 
 export const getStaticProps: GetStaticProps<{
-  tag: Tag
+  category: Category
 }> = async (context) => {
-  const tag = await prisma.tag.findUnique({
+  const category = await prisma.category.findUnique({
     where: {
       slug: context.params?.slug as string,
     },
@@ -78,10 +78,10 @@ export const getStaticProps: GetStaticProps<{
     },
   })
 
-  return tag
+  return category
     ? {
         props: {
-          tag,
+          category,
         },
         revalidate: 60,
       }

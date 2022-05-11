@@ -28,7 +28,7 @@ const Article: NextPage<{
                     <div className="tags">
                       {post.categories.map(({ category }) => (
                         <div className="tag-item" key={category.id}>
-                          <Link href={`/${category.slug}`}>
+                          <Link href={`/category/${category.slug}`}>
                             <a className="tag">{category.name}</a>
                           </Link>
                           <div className="links"></div>

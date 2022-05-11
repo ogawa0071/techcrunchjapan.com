@@ -9,7 +9,7 @@ import { default as HomeComponent } from 'components/Home'
 import { dateToUrl, dateToString } from 'lib/date'
 import { JSDOM } from 'jsdom'
 
-const Home: NextPage<{ posts: Post[] }> = ({ posts }) => {
+const Search: NextPage<{ posts: Post[] }> = ({ posts }) => {
   return (
     <div>
       <GlobalHead />
@@ -23,25 +23,25 @@ const Home: NextPage<{ posts: Post[] }> = ({ posts }) => {
   )
 }
 
-export default Home
+export default Search
 
 export const getStaticProps: GetStaticProps<{
   posts: Post[]
 }> = async (context) => {
   const posts = await prisma.post.findMany({
     where: {
-      // OR: [
-      //   {
-      title: {
-        contains: context.params?.query as string,
-      },
-      //   },
-      //   {
-      //     content: {
-      //       contains: context.params?.query as string,
-      //     },
-      //   },
-      // ],
+      OR: [
+        {
+          title: {
+            contains: context.params?.query as string,
+          },
+        },
+        {
+          content: {
+            contains: context.params?.query as string,
+          },
+        },
+      ],
     },
     include: {
       author: true,
@@ -59,6 +59,7 @@ export const getStaticProps: GetStaticProps<{
     orderBy: {
       createdAt: 'desc',
     },
+    take: 100,
   })
 
   return {

@@ -73,7 +73,7 @@ const Home: NextPage<{
                       <div className="block block-thumb">
                         {post.categories.map(({ category }) => (
                           <div className="tags" key={category.id}>
-                            <Link href={`/${category.slug}`}>
+                            <Link href={`/category/${category.slug}`}>
                               <a className="tag">
                                 <span>{category.name}</span>
                               </a>
