@@ -46,6 +46,8 @@ export default Home
 export const getStaticProps: GetStaticProps<{
   posts: Post[]
 }> = async (context) => {
+  console.log('OK')
+
   const posts = await prisma.post.findMany({
     include: {
       author: true,
@@ -66,6 +68,8 @@ export const getStaticProps: GetStaticProps<{
     },
   })
 
+  console.log('OK2')
+
   return {
     props: {
       posts: posts.map((post) => ({
@@ -73,11 +77,12 @@ export const getStaticProps: GetStaticProps<{
         link: `${dateToUrl(post.createdAt)}/${post.slug}`,
         createdAtString: dateToString(post.createdAt),
         updatedAtString: dateToString(post.updatedAt),
-        contentString: Array.from(
-          new JSDOM(posts[0].content).window.document.body.children
-        )
-          .map((e) => e.textContent)
-          .join(''),
+        contentString: post.content,
+        // Array.from(
+        //   new JSDOM(posts[0].content).window.document.body.children
+        // )
+        //   .map((e) => e.textContent)
+        //   .join(''),
       })),
     },
     revalidate: 60,
