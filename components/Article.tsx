@@ -2,11 +2,20 @@ import type { NextPage } from 'next'
 import Sidebar from 'components/Sidebar'
 import { Post } from 'pages/index'
 import Link from 'next/link'
+import { useEffect } from 'react'
 
 const Article: NextPage<{
   post: Post
   children?: React.ReactNode
 }> = ({ post, children }) => {
+  useEffect(() => {
+    document.body.classList.add('single-post')
+
+    return () => {
+      document.body.classList.remove('single-post')
+    }
+  }, [])
+
   return (
     <>
       {post && (
@@ -31,9 +40,9 @@ const Article: NextPage<{
                       <div className="byline">
                         <time className="timestamp">
                           {post.createdAtString}
-                        </time>
-                        by
-                        <Link href={`/${post.author.slug}`}>
+                        </time>{' '}
+                        by{' '}
+                        <Link href={`/author/${post.author.slug}`}>
                           <a>{post.author.name}</a>
                         </Link>
                       </div>
@@ -46,7 +55,7 @@ const Article: NextPage<{
                       <div className="l-main">
                         <div className="article-entry text">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={post.featuredMediaUrl || ''} alt="" />
+                          <img src={`${post.featuredMediaUrl}`} alt="" />
                           <div
                             dangerouslySetInnerHTML={{
                               __html: post.content || '',

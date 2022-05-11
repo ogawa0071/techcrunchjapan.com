@@ -10,11 +10,11 @@ const ArticleSidebar: NextPage<{
     <div className="l-sidebar demo-block">
       <div className="accordion recirc-accordion">
         <ul>
-          {post.categories.map((category) => (
-            <li key={category.categoryId}>
+          {post.categories.map(({ category }) => (
+            <li key={category.id}>
               <div className="acc-handle">
-                <Link href={category.category.slug}>
-                  <a>{category.category.id}</a>
+                <Link href={`/${category.slug}`}>
+                  <a>{category.name}</a>
                 </Link>
               </div>
             </li>
@@ -37,11 +37,14 @@ const ArticleSidebar: NextPage<{
                                   <div className="popular-image">
                                     <Link href={post.link}>
                                       <a className="thumb">
-                                        {/* TODO: デフォルト画像を設定 */}
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img
-                                          src={post.featuredMediaUrl || ''}
-                                          alt=""
+                                          src={
+                                            post.featuredMediaUrl
+                                              ? `${post.featuredMediaUrl}?w=210&h=158&crop=1`
+                                              : '/wp-content/themes/techcrunch-jp-2015/assets/images/210x210.png'
+                                          }
+                                          alt={post.title}
                                         />
                                       </a>
                                     </Link>

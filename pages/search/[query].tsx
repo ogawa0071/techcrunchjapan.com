@@ -4,38 +4,20 @@ import Header from 'components/Header'
 import Footer from 'components/Footer'
 import GlobalHead from 'components/Head'
 import { prisma } from 'lib/prisma'
-import {
-  Post as _Post,
-  User,
-  CategoriesOnPosts,
-  Category,
-  TagsOnPosts,
-  Tag,
-} from '@prisma/client'
+import { Post } from 'pages/index'
 import { default as HomeComponent } from 'components/Home'
 import { dateToUrl, dateToString } from 'lib/date'
 import { JSDOM } from 'jsdom'
-
-export interface Post extends _Post {
-  author: User
-  categories: (CategoriesOnPosts & {
-    category: Category
-  })[]
-  tags: (TagsOnPosts & {
-    tag: Tag
-  })[]
-  link: string
-  createdAtString: string
-  updatedAtString: string
-  contentString?: string
-}
 
 const Home: NextPage<{ posts: Post[] }> = ({ posts }) => {
   return (
     <div>
       <GlobalHead />
       <Header />
-      <HomeComponent posts={posts} />
+      <div>Searchページはアーカイブ作成中です。</div>
+      <div>
+        <pre>{JSON.stringify(posts, null, 2)}</pre>
+      </div>
       <Footer />
     </div>
   )
@@ -47,6 +29,20 @@ export const getStaticProps: GetStaticProps<{
   posts: Post[]
 }> = async (context) => {
   const posts = await prisma.post.findMany({
+    where: {
+      // OR: [
+      //   {
+      title: {
+        contains: context.params?.query as string,
+      },
+      //   },
+      //   {
+      //     content: {
+      //       contains: context.params?.query as string,
+      //     },
+      //   },
+      // ],
+    },
     include: {
       author: true,
       categories: {
@@ -60,7 +56,6 @@ export const getStaticProps: GetStaticProps<{
         },
       },
     },
-    take: 20,
     orderBy: {
       createdAt: 'desc',
     },
@@ -81,5 +76,12 @@ export const getStaticProps: GetStaticProps<{
       })),
     },
     revalidate: 60,
+  }
+}
+
+export async function getStaticPaths() {
+  return {
+    paths: [],
+    fallback: true,
   }
 }

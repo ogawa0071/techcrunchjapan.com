@@ -158,26 +158,18 @@ const Header: NextPage = () => {
             </Link>
             <ul className="sticky-nav-list">
               <li>
-                <a href="index.html" className="nav-parent">
-                  トピックス
-                </a>
+                <Link href="/">
+                  <a className="nav-parent">トピックス</a>
+                </Link>
               </li>
               <li>
                 <a
-                  href="https://jp.techcrunch.com/events/"
                   className="nav-parent"
-                >
-                  イベント
-                </a>
-              </li>
-              <li>
-                <a
                   href="https://www.crunchbase.com/"
-                  className="nav-parent"
                   target="_blank"
                   rel="noreferrer"
                 >
-                  CrunchBase
+                  Crunchbase
                 </a>
               </li>
             </ul>
@@ -243,7 +235,7 @@ const Header: NextPage = () => {
                           </Link>
                         </li>
                       ))}
-                    </ul>{' '}
+                    </ul>
                   </ul>
                 </div>
               </ul>

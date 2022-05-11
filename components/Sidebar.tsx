@@ -1,11 +1,25 @@
 import type { NextPage } from 'next'
 import Link from 'next/link'
+import { useState } from 'react'
 
 const Sidebar: NextPage = () => {
+  const [toggle, setToggle] = useState<boolean>(false)
+
   return (
     <div className="l-sidebar">
       <div className="section aside sponsors collapse collapse-adjacent block">
-        <div className="collapse-body">
+        <h2
+          className={`section-title collapse-title hide-med ${
+            toggle && 'active'
+          }`}
+          onClick={(e) => {
+            e.preventDefault()
+            setToggle((toggle) => !toggle)
+          }}
+        >
+          近日開催のイベント
+        </h2>
+        <div className={`collapse-body ${toggle && 'active'}`}>
           <div className="right_rail_mod">
             <div className="right_rail_mod">
               <div style={{ marginBottom: '0.25em' }}>

@@ -16,25 +16,25 @@ const Home: NextPage<{
               <div className="l-main">
                 <div className="island plain-island">
                   <div className="plain-feature block block-inset">
-                    <Link href={posts?.[0].link}>
+                    <Link href={posts[0].link}>
                       <a>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           className="thumb"
-                          src={`${posts?.[0].featuredMediaUrl}?w=474&h=350&crop=1`}
-                          alt=""
+                          src={`${posts[0].featuredMediaUrl}?w=474&h=350&crop=1`}
+                          alt={posts[0].title}
                         />
                         <div className="block-title">
-                          <h2>{posts?.[0].title}</h2>
+                          <h2>{posts[0].title}</h2>
                           <div className="byline">
-                            by {posts?.[0].author.name}
+                            by {posts[0].author.name}
                           </div>
                         </div>
                       </a>
                     </Link>
                   </div>
                   <ul className="plain-item-list">
-                    {posts?.slice(1, 4).map((post) => (
+                    {posts.slice(1, 4).map((post) => (
                       <li
                         className="plain-item block block-small"
                         key={post.id}
@@ -45,7 +45,7 @@ const Home: NextPage<{
                             <img
                               className="thumb"
                               src={`${post.featuredMediaUrl}?w=145&h=90&crop=1`}
-                              alt=""
+                              alt={post.title}
                             />
                             <div className="plain-title">
                               <h2 className="h-alt">{post.title}</h2>
@@ -68,7 +68,7 @@ const Home: NextPage<{
                   </div>
                 </div>
                 <ul className="river lc-padding">
-                  {posts?.map((post) => (
+                  {posts.map((post) => (
                     <li className="river-block" key={post.id}>
                       <div className="block block-thumb">
                         {post.categories.map(({ category }) => (
@@ -86,8 +86,12 @@ const Home: NextPage<{
                               <a className="thumb">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
-                                  src={`${post.featuredMediaUrl}?w=210&h=158&crop=1`}
-                                  alt=""
+                                  src={
+                                    post.featuredMediaUrl
+                                      ? `${post.featuredMediaUrl}?w=210&h=158&crop=1`
+                                      : '/wp-content/themes/techcrunch-jp-2015/assets/images/210x210.png'
+                                  }
+                                  alt={post.title}
                                 />
                               </a>
                             </Link>
@@ -108,8 +112,7 @@ const Home: NextPage<{
                             </Link>
                           </div>
                           <p className="excerpt">
-                            {/* // TODO */}
-                            {post.content.slice(0, 270)}
+                            {post.contentString?.slice(0, 270)}
                             &hellip;
                             <Link href={post.link}>
                               <a className="read-more">続きを読む</a>
