@@ -8,9 +8,15 @@ export function dateToString(date: Date) {
 }
 
 export function dateToUrl(date: Date) {
-  const year = date.getFullYear()
-  const month = date.getMonth() + 1
-  const day = date.getDate()
+  const _date = new Date(
+    date.toLocaleDateString('en', {
+      timeZone: 'Asia/Tokyo',
+    })
+  )
+
+  const year = _date.getFullYear()
+  const month = _date.getMonth() + 1
+  const day = _date.getDate()
 
   return `/${year.toString().padStart(4, '0')}/${month
     .toString()
