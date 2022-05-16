@@ -43,6 +43,7 @@ const GlobalHead: NextPage<{
           }
         />
         <meta name="twitter:card" content="summary_large_image" />
+        <meta name="robots" content="max-image-preview:large" />
 
         {/* eslint-disable-next-line @next/next/no-css-tags */}
         <link rel="stylesheet" href="/index.css" />
