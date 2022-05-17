@@ -53,10 +53,7 @@ const host = 'https://techcrunchjapan.com'
           .replaceAll(`'`, '&apos;')
           .replaceAll(`"`, '&quot;')
           .replaceAll('>', '&gt;')
-          .replaceAll(
-            '<',
-            '&lt;'
-          )}/</loc><lastmod>${post.updatedAt.toISOString()}</lastmod></url>`
+          .replaceAll('<', '&lt;')}/</loc></url>`
     )
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
