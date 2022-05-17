@@ -53,15 +53,19 @@ const host = 'https://techcrunchjapan.com'
           .replaceAll(`'`, '&apos;')
           .replaceAll(`"`, '&quot;')
           .replaceAll('>', '&gt;')
-          .replaceAll('<', '&lt;')}/</loc></url>`
+          .replaceAll(
+            '<',
+            '&lt;'
+          )}/</loc><lastmod>${post.updatedAt.toISOString()}</lastmod></url>`
     )
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${postsXml.join('\n')}
-</urlset>`
+</urlset>
+`
 
-    const _path = `public/${year}/sitemap.xml`
+    const _path = `public/${year}.xml`
     await fs.promises.mkdir(path.dirname(_path), { recursive: true })
     await fs.promises.writeFile(_path, xml)
   }
