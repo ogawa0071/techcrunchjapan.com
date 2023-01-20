@@ -21,8 +21,11 @@ import { JSDOM } from 'jsdom'
 
 const PostPage: NextPage<{
   post: Post
-  latestPosts: Post[]
-}> = ({ post, latestPosts }) => {
+  // latestPosts: Post[]
+}> = ({
+  post,
+  // latestPosts
+}) => {
   return (
     <div>
       <GlobalHead
@@ -33,7 +36,7 @@ const PostPage: NextPage<{
       />
       <Header />
       <Article post={post}>
-        <ArticleSidebar post={post} latestPosts={latestPosts} />
+        {/* <ArticleSidebar post={post} latestPosts={latestPosts} /> */}
       </Article>
       <Footer />
     </div>
@@ -44,7 +47,7 @@ export default PostPage
 
 export const getStaticProps: GetStaticProps<{
   post: Post
-  latestPosts: Post[]
+  // latestPosts: Post[]
 }> = async (context) => {
   const post = await prisma.post.findUnique({
     where: {
@@ -64,33 +67,33 @@ export const getStaticProps: GetStaticProps<{
           category: true,
         },
       },
-      tags: {
-        include: {
-          tag: true,
-        },
-      },
+      // tags: {
+      //   include: {
+      //     tag: true,
+      //   },
+      // },
     },
   })
 
-  const latestPosts = await prisma.post.findMany({
-    include: {
-      author: true,
-      categories: {
-        include: {
-          category: true,
-        },
-      },
-      tags: {
-        include: {
-          tag: true,
-        },
-      },
-    },
-    take: 20,
-    orderBy: {
-      createdAt: 'desc',
-    },
-  })
+  // const latestPosts = await prisma.post.findMany({
+  //   include: {
+  //     author: true,
+  //     categories: {
+  //       include: {
+  //         category: true,
+  //       },
+  //     },
+  //     tags: {
+  //       include: {
+  //         tag: true,
+  //       },
+  //     },
+  //   },
+  //   take: 20,
+  //   orderBy: {
+  //     createdAt: 'desc',
+  //   },
+  // })
 
   return post
     ? {
@@ -106,12 +109,12 @@ export const getStaticProps: GetStaticProps<{
               .map((e) => e.textContent)
               .join(''),
           },
-          latestPosts: latestPosts.map((post) => ({
-            ...post,
-            link: `${dateToUrl(post.createdAt)}/${post.slug}/`,
-            createdAtString: dateToString(post.createdAt),
-            updatedAtString: dateToString(post.updatedAt),
-          })),
+          // latestPosts: latestPosts.map((post) => ({
+          //   ...post,
+          //   link: `${dateToUrl(post.createdAt)}/${post.slug}/`,
+          //   createdAtString: dateToString(post.createdAt),
+          //   updatedAtString: dateToString(post.updatedAt),
+          // })),
         },
         revalidate: 60 * 60 * 24,
       }

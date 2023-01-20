@@ -21,9 +21,9 @@ export interface Post extends _Post {
   categories: (CategoriesOnPosts & {
     category: Category
   })[]
-  tags: (TagsOnPosts & {
-    tag: Tag
-  })[]
+  // tags: (TagsOnPosts & {
+  //   tag: Tag
+  // })[]
   link: string
   createdAtString: string
   updatedAtString: string
