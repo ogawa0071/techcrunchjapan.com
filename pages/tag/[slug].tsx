@@ -83,7 +83,7 @@ export const getStaticProps: GetStaticProps<{
         props: {
           tag,
         },
-        revalidate: 60,
+        revalidate: 60 * 60 * 24,
       }
     : {
         notFound: true,

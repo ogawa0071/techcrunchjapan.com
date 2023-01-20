@@ -113,7 +113,7 @@ export const getStaticProps: GetStaticProps<{
             updatedAtString: dateToString(post.updatedAt),
           })),
         },
-        revalidate: 60,
+        revalidate: 60 * 60 * 24,
       }
     : {
         notFound: true,

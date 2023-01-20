@@ -73,7 +73,7 @@ export const getStaticProps: GetStaticProps<{
         props: {
           user,
         },
-        revalidate: 60,
+        revalidate: 60 * 60 * 24,
       }
     : {
         notFound: true,

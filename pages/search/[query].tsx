@@ -76,7 +76,7 @@ export const getStaticProps: GetStaticProps<{
           .join(''),
       })),
     },
-    revalidate: 60,
+    revalidate: 60 * 60 * 24,
   }
 }
 
