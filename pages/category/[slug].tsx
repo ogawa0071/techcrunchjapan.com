@@ -26,15 +26,19 @@ interface Category extends _Category {
   })[]
 }
 
-const CategoryPage: NextPage<{ category: Category }> = ({ category }) => {
+const CategoryPage: NextPage<{
+  // category: Category
+}> = (
+  {
+    // category
+  }
+) => {
   return (
     <div>
       <GlobalHead />
       <Header />
       <div>Categoryページはアーカイブ作成中です。</div>
-      <div>
-        <pre>{JSON.stringify(category, null, 2)}</pre>
-      </div>
+      <div>{/* <pre>{JSON.stringify(category, null, 2)}</pre> */}</div>
       <Footer />
     </div>
   )
@@ -42,57 +46,57 @@ const CategoryPage: NextPage<{ category: Category }> = ({ category }) => {
 
 export default CategoryPage
 
-export const getStaticProps: GetStaticProps<{
-  category: Category
-}> = async (context) => {
-  const category = await prisma.category.findUnique({
-    where: {
-      slug: context.params?.slug as string,
-    },
-    include: {
-      posts: {
-        include: {
-          post: {
-            include: {
-              author: true,
-              categories: {
-                include: {
-                  category: true,
-                },
-              },
-              tags: {
-                include: {
-                  tag: true,
-                },
-              },
-            },
-          },
-        },
-        orderBy: {
-          post: {
-            createdAt: 'desc',
-          },
-        },
-        take: 100,
-      },
-    },
-  })
+// export const getStaticProps: GetStaticProps<{
+//   category: Category
+// }> = async (context) => {
+//   const category = await prisma.category.findUnique({
+//     where: {
+//       slug: context.params?.slug as string,
+//     },
+//     include: {
+//       posts: {
+//         include: {
+//           post: {
+//             include: {
+//               author: true,
+//               categories: {
+//                 include: {
+//                   category: true,
+//                 },
+//               },
+//               tags: {
+//                 include: {
+//                   tag: true,
+//                 },
+//               },
+//             },
+//           },
+//         },
+//         orderBy: {
+//           post: {
+//             createdAt: 'desc',
+//           },
+//         },
+//         take: 100,
+//       },
+//     },
+//   })
 
-  return category
-    ? {
-        props: {
-          category,
-        },
-        revalidate: 60 * 60 * 24,
-      }
-    : {
-        notFound: true,
-      }
-}
+//   return category
+//     ? {
+//         props: {
+//           category,
+//         },
+//         revalidate: 60 * 60 * 24,
+//       }
+//     : {
+//         notFound: true,
+//       }
+// }
 
-export async function getStaticPaths() {
-  return {
-    paths: [],
-    fallback: true,
-  }
-}
+// export async function getStaticPaths() {
+//   return {
+//     paths: [],
+//     fallback: true,
+//   }
+// }

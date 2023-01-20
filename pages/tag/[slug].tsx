@@ -26,15 +26,19 @@ interface Tag extends _Tag {
   })[]
 }
 
-const TagPage: NextPage<{ tag: Tag }> = ({ tag }) => {
+const TagPage: NextPage<{
+  // tag: Tag
+}> = (
+  {
+    // tag
+  }
+) => {
   return (
     <div>
       <GlobalHead />
       <Header />
       <div>Tagページはアーカイブ作成中です。</div>
-      <div>
-        <pre>{JSON.stringify(tag, null, 2)}</pre>
-      </div>
+      <div>{/* <pre>{JSON.stringify(tag, null, 2)}</pre> */}</div>
       <Footer />
     </div>
   )
@@ -42,57 +46,57 @@ const TagPage: NextPage<{ tag: Tag }> = ({ tag }) => {
 
 export default TagPage
 
-export const getStaticProps: GetStaticProps<{
-  tag: Tag
-}> = async (context) => {
-  const tag = await prisma.tag.findUnique({
-    where: {
-      slug: context.params?.slug as string,
-    },
-    include: {
-      posts: {
-        include: {
-          post: {
-            include: {
-              author: true,
-              categories: {
-                include: {
-                  category: true,
-                },
-              },
-              tags: {
-                include: {
-                  tag: true,
-                },
-              },
-            },
-          },
-        },
-        orderBy: {
-          post: {
-            createdAt: 'desc',
-          },
-        },
-        take: 100,
-      },
-    },
-  })
+// export const getStaticProps: GetStaticProps<{
+//   tag: Tag
+// }> = async (context) => {
+//   const tag = await prisma.tag.findUnique({
+//     where: {
+//       slug: context.params?.slug as string,
+//     },
+//     include: {
+//       posts: {
+//         include: {
+//           post: {
+//             include: {
+//               author: true,
+//               categories: {
+//                 include: {
+//                   category: true,
+//                 },
+//               },
+//               tags: {
+//                 include: {
+//                   tag: true,
+//                 },
+//               },
+//             },
+//           },
+//         },
+//         orderBy: {
+//           post: {
+//             createdAt: 'desc',
+//           },
+//         },
+//         take: 100,
+//       },
+//     },
+//   })
 
-  return tag
-    ? {
-        props: {
-          tag,
-        },
-        revalidate: 60 * 60 * 24,
-      }
-    : {
-        notFound: true,
-      }
-}
+//   return tag
+//     ? {
+//         props: {
+//           tag,
+//         },
+//         revalidate: 60 * 60 * 24,
+//       }
+//     : {
+//         notFound: true,
+//       }
+// }
 
-export async function getStaticPaths() {
-  return {
-    paths: [],
-    fallback: true,
-  }
-}
+// export async function getStaticPaths() {
+//   return {
+//     paths: [],
+//     fallback: true,
+//   }
+// }
