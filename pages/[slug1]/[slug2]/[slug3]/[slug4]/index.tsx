@@ -49,31 +49,34 @@ export const getStaticProps: GetStaticProps<{
   post: Post
   // latestPosts: Post[]
 }> = async (context) => {
-  const post = await prisma.post.findUnique({
-    where: {
-      //   AND: [
-      // {
-      slug: context.params?.slug4 as string,
-      //  },
-      // {
-      //   createdAt: '',
-      // },
-      //   ],
-    },
-    include: {
-      author: true,
-      categories: {
-        include: {
-          category: true,
-        },
-      },
-      // tags: {
-      //   include: {
-      //     tag: true,
-      //   },
-      // },
-    },
-  })
+  const post =
+    typeof context.params?.slug4 === 'string'
+      ? await prisma.post.findUnique({
+          where: {
+            //   AND: [
+            // {
+            slug: context.params?.slug4,
+            //  },
+            // {
+            //   createdAt: '',
+            // },
+            //   ],
+          },
+          include: {
+            author: true,
+            categories: {
+              include: {
+                category: true,
+              },
+            },
+            // tags: {
+            //   include: {
+            //     tag: true,
+            //   },
+            // },
+          },
+        })
+      : null
 
   // const latestPosts = await prisma.post.findMany({
   //   include: {
