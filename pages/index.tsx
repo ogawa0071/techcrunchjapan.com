@@ -54,11 +54,11 @@ export const getStaticProps: GetStaticProps<{
           category: true,
         },
       },
-      tags: {
-        include: {
-          tag: true,
-        },
-      },
+      // tags: {
+      //   include: {
+      //     tag: true,
+      //   },
+      // },
     },
     orderBy: {
       createdAt: 'desc',
