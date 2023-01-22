@@ -3,7 +3,7 @@
 
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["referentialIntegrity"]
+  previewFeatures = ["referentialIntegrity", "extendedIndexes"]
 }
 
 datasource db {
@@ -26,6 +26,7 @@ model Post {
   featuredMediaUrl String? // jetpack_featured_media_url
 
   @@index(authorId)
+  @@index(createdAt(sort: Desc))
 }
 
 model User {
