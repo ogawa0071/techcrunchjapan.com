@@ -10,7 +10,7 @@ import {
   CategoriesOnPosts,
   Category,
 } from '@prisma/client'
-import { prisma } from 'lib/prisma'
+import prisma from 'lib/prisma'
 
 interface Tag extends _Tag {
   posts: (TagsOnPosts & {

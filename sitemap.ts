@@ -1,5 +1,5 @@
 import * as fs from 'fs'
-import { prisma } from './lib/prisma'
+import prisma from './lib/prisma'
 import { dateToUrl } from './lib/date'
 import type { Post } from '@prisma/client'
 import * as path from 'path'

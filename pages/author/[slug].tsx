@@ -10,7 +10,7 @@ import {
   CategoriesOnPosts,
   Category,
 } from '@prisma/client'
-import { prisma } from 'lib/prisma'
+import prisma from 'lib/prisma'
 
 interface User extends _User {
   posts: (Post & {

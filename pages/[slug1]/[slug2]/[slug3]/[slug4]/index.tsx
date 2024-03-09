@@ -1,6 +1,6 @@
 import { GetStaticProps } from 'next'
 import type { NextPage } from 'next'
-import { prisma } from 'lib/prisma'
+import prisma from 'lib/prisma'
 import Header from 'components/Header'
 import Footer from 'components/Footer'
 import GlobalHead from 'components/Head'
