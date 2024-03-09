@@ -13,8 +13,8 @@ const ArticleSidebar: NextPage<{
           {post.categories.map(({ category }) => (
             <li key={category.id}>
               <div className="acc-handle">
-                <Link href={`/category/${category.slug}`}>
-                  <a>{category.name}</a>
+                <Link href={`/category/${category.slug}`} legacyBehavior>
+                  {category.name}
                 </Link>
               </div>
             </li>
@@ -35,24 +35,26 @@ const ArticleSidebar: NextPage<{
                               <div className="popular-sub-container">
                                 <span>
                                   <div className="popular-image">
-                                    <Link href={post.link}>
-                                      <a className="thumb">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img
-                                          src={
-                                            post.featuredMediaUrl
-                                              ? `${post.featuredMediaUrl}?w=210&h=158&crop=1`
-                                              : '/wp-content/themes/techcrunch-jp-2015/assets/images/210x210.png'
-                                          }
-                                          alt={post.title}
-                                        />
-                                      </a>
+                                    <Link
+                                      href={post.link}
+                                      className="thumb"
+                                      legacyBehavior
+                                    >
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img
+                                        src={
+                                          post.featuredMediaUrl
+                                            ? `${post.featuredMediaUrl}?w=210&h=158&crop=1`
+                                            : '/wp-content/themes/techcrunch-jp-2015/assets/images/210x210.png'
+                                        }
+                                        alt={post.title}
+                                      />
                                     </Link>
                                   </div>
                                 </span>
                                 <h2 className="popular-post-title">
-                                  <Link href={post.link}>
-                                    <a>{post.title}</a>
+                                  <Link href={post.link} legacyBehavior>
+                                    {post.title}
                                   </Link>
                                 </h2>
                                 <div className="popular-byline">

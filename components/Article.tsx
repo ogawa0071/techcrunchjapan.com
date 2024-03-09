@@ -28,8 +28,12 @@ const Article: NextPage<{
                     <div className="tags">
                       {post.categories.map(({ category }) => (
                         <div className="tag-item" key={category.id}>
-                          <Link href={`/category/${category.slug}`}>
-                            <a className="tag">{category.name}</a>
+                          <Link
+                            href={`/category/${category.slug}`}
+                            className="tag"
+                            legacyBehavior
+                          >
+                            {category.name}
                           </Link>
                           <div className="links"></div>
                         </div>
@@ -42,8 +46,11 @@ const Article: NextPage<{
                           {post.createdAtString}
                         </time>{' '}
                         by{' '}
-                        <Link href={`/author/${post.author.slug}`}>
-                          <a>{post.author.name}</a>
+                        <Link
+                          href={`/author/${post.author.slug}`}
+                          legacyBehavior
+                        >
+                          {post.author.name}
                         </Link>
                       </div>
                     </div>

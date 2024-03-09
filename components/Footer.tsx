@@ -42,16 +42,14 @@ const Footer: NextPage = () => {
           <div className="g g-3up g-nogutter">
             <div className="gi">
               <h4 className="footer-logo">
-                <Link href="/">
-                  <a>TechCrunch</a>
-                </Link>
+                <Link href="/">TechCrunch</Link>
               </h4>
               <div>
                 <ul className="footer-links-about">
                   {menu.map((menuItem, index) => (
                     <li key={index}>
-                      <Link href={menuItem.link}>
-                        <a>{menuItem.name}</a>
+                      <Link href={menuItem.link} legacyBehavior>
+                        {menuItem.name}
                       </Link>
                     </li>
                   ))}
@@ -64,9 +62,7 @@ const Footer: NextPage = () => {
               <div>
                 <ul className="footer-links-about">
                   <li className="menu-item menu-item-type-custom menu-item-object-custom menu-item-133015">
-                    <Link href="/about/">
-                      <a>TechCrunch Japanについて</a>
-                    </Link>
+                    <Link href="/about/">TechCrunch Japanについて</Link>
                   </li>
                 </ul>
               </div>

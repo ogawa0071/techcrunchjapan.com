@@ -78,15 +78,13 @@ const Header: NextPage = () => {
               >
                 <span className="is-vishidden">Menu</span>
               </a>
-              <Link href="/">
-                <a className="logo-link">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/wp-content/uploads/2020/02/tc_logo180x90.png"
-                    alt="TechCrunch"
-                    className="logo"
-                  />
-                </a>
+              <Link href="/" className="logo-link" legacyBehavior>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/wp-content/uploads/2020/02/tc_logo180x90.png"
+                  alt="TechCrunch"
+                  className="logo"
+                />
               </Link>
               {/* Add classname "js" */}
               <div className="header-logo-bar cf js">
@@ -110,8 +108,8 @@ const Header: NextPage = () => {
                           <ul className="subnav-channel">
                             {menu.map((menuItem, index) => (
                               <li className="menu-item" key={index}>
-                                <Link href={menuItem.link}>
-                                  <a>{menuItem.name}</a>
+                                <Link href={menuItem.link} legacyBehavior>
+                                  {menuItem.name}
                                 </Link>
                               </li>
                             ))}
@@ -146,20 +144,18 @@ const Header: NextPage = () => {
       >
         <div className="lc">
           <div className="lc">
-            <Link href="/">
-              <a className="logo-link">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/wp-content/uploads/2020/02/tc_logo180x90.png"
-                  alt="TechCrunch"
-                  className="logo"
-                />
-              </a>
+            <Link href="/" className="logo-link" legacyBehavior>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/wp-content/uploads/2020/02/tc_logo180x90.png"
+                alt="TechCrunch"
+                className="logo"
+              />
             </Link>
             <ul className="sticky-nav-list">
               <li>
-                <Link href="/">
-                  <a className="nav-parent">トピックス</a>
+                <Link href="/" className="nav-parent">
+                  トピックス
                 </Link>
               </li>
               <li>
@@ -198,16 +194,14 @@ const Header: NextPage = () => {
         >
           <ul>
             <li className="mobile-header-menu-tc-logo">
-              <Link href="/">
-                <a>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/wp-content/uploads/2020/02/tc_logo180x90.png"
-                    alt="TechCrunch"
-                    title="TechCrunch"
-                    width="150"
-                  />
-                </a>
+              <Link href="/" legacyBehavior>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/wp-content/uploads/2020/02/tc_logo180x90.png"
+                  alt="TechCrunch"
+                  title="TechCrunch"
+                  width="150"
+                />
               </Link>
               <button
                 className="close-mobile-menu-container"
@@ -230,8 +224,8 @@ const Header: NextPage = () => {
                     >
                       {menu.map((menuItem, index) => (
                         <li className="menu-item" key={index}>
-                          <Link href={menuItem.link}>
-                            <a>{menuItem.name}</a>
+                          <Link href={menuItem.link} legacyBehavior>
+                            {menuItem.name}
                           </Link>
                         </li>
                       ))}
