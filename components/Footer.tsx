@@ -48,9 +48,7 @@ const Footer: NextPage = () => {
                 <ul className="footer-links-about">
                   {menu.map((menuItem, index) => (
                     <li key={index}>
-                      <Link href={menuItem.link} legacyBehavior>
-                        {menuItem.name}
-                      </Link>
+                      <Link href={menuItem.link}>{menuItem.name}</Link>
                     </li>
                   ))}
                 </ul>

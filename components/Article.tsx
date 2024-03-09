@@ -31,7 +31,6 @@ const Article: NextPage<{
                           <Link
                             href={`/category/${category.slug}`}
                             className="tag"
-                            legacyBehavior
                           >
                             {category.name}
                           </Link>
@@ -46,10 +45,7 @@ const Article: NextPage<{
                           {post.createdAtString}
                         </time>{' '}
                         by{' '}
-                        <Link
-                          href={`/author/${post.author.slug}`}
-                          legacyBehavior
-                        >
+                        <Link href={`/author/${post.author.slug}`}>
                           {post.author.name}
                         </Link>
                       </div>

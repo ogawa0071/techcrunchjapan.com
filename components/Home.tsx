@@ -16,17 +16,21 @@ const Home: NextPage<{
               <div className="l-main">
                 <div className="island plain-island">
                   <div className="plain-feature block block-inset">
-                    <Link href={posts[0].link} legacyBehavior>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        className="thumb"
-                        src={`${posts[0].featuredMediaUrl}?w=474&h=350&crop=1`}
-                        alt={posts[0].title}
-                      />
-                      <div className="block-title">
-                        <h2>{posts[0].title}</h2>
-                        <div className="byline">by {posts[0].author.name}</div>
-                      </div>
+                    <Link href={posts[0].link}>
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          className="thumb"
+                          src={`${posts[0].featuredMediaUrl}?w=474&h=350&crop=1`}
+                          alt={posts[0].title}
+                        />
+                        <div className="block-title">
+                          <h2>{posts[0].title}</h2>
+                          <div className="byline">
+                            by {posts[0].author.name}
+                          </div>
+                        </div>
+                      </>
                     </Link>
                   </div>
                   <ul className="plain-item-list">
@@ -35,17 +39,19 @@ const Home: NextPage<{
                         className="plain-item block block-small"
                         key={post.id}
                       >
-                        <Link href={post.link} legacyBehavior>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            className="thumb"
-                            src={`${post.featuredMediaUrl}?w=145&h=90&crop=1`}
-                            alt={post.title}
-                          />
-                          <div className="plain-title">
-                            <h2 className="h-alt">{post.title}</h2>
-                            <p className="byline">by {post.author.name}</p>
-                          </div>
+                        <Link href={post.link}>
+                          <>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              className="thumb"
+                              src={`${post.featuredMediaUrl}?w=145&h=90&crop=1`}
+                              alt={post.title}
+                            />
+                            <div className="plain-title">
+                              <h2 className="h-alt">{post.title}</h2>
+                              <p className="byline">by {post.author.name}</p>
+                            </div>
+                          </>
                         </Link>
                       </li>
                     ))}
@@ -70,7 +76,6 @@ const Home: NextPage<{
                             <Link
                               href={`/category/${category.slug}`}
                               className="tag"
-                              legacyBehavior
                             >
                               <span>{category.name}</span>
                             </Link>
@@ -78,11 +83,7 @@ const Home: NextPage<{
                         ))}
                         <div className="block-content">
                           <span>
-                            <Link
-                              href={post.link}
-                              className="thumb"
-                              legacyBehavior
-                            >
+                            <Link href={post.link} className="thumb">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
                                 src={
@@ -96,16 +97,14 @@ const Home: NextPage<{
                           </span>
 
                           <h2 className="post-title">
-                            <Link href={post.link} legacyBehavior>
-                              {post.title}
-                            </Link>
+                            <Link href={post.link}>{post.title}</Link>
                           </h2>
                           <div className="byline">
                             <time className="timestamp">
                               {post.createdAtString}
                             </time>
                             by
-                            <Link href={`/${post.author.slug}`} legacyBehavior>
+                            <Link href={`/${post.author.slug}`}>
                               {post.author.name}
                             </Link>
                           </div>

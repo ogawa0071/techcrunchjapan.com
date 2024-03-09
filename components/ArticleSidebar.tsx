@@ -13,9 +13,7 @@ const ArticleSidebar: NextPage<{
           {post.categories.map(({ category }) => (
             <li key={category.id}>
               <div className="acc-handle">
-                <Link href={`/category/${category.slug}`} legacyBehavior>
-                  {category.name}
-                </Link>
+                <Link href={`/category/${category.slug}`}>{category.name}</Link>
               </div>
             </li>
           ))}
@@ -35,11 +33,7 @@ const ArticleSidebar: NextPage<{
                               <div className="popular-sub-container">
                                 <span>
                                   <div className="popular-image">
-                                    <Link
-                                      href={post.link}
-                                      className="thumb"
-                                      legacyBehavior
-                                    >
+                                    <Link href={post.link} className="thumb">
                                       {/* eslint-disable-next-line @next/next/no-img-element */}
                                       <img
                                         src={
@@ -53,9 +47,7 @@ const ArticleSidebar: NextPage<{
                                   </div>
                                 </span>
                                 <h2 className="popular-post-title">
-                                  <Link href={post.link} legacyBehavior>
-                                    {post.title}
-                                  </Link>
+                                  <Link href={post.link}>{post.title}</Link>
                                 </h2>
                                 <div className="popular-byline">
                                   <time className="popular-timestamp">

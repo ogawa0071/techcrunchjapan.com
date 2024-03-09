@@ -78,7 +78,7 @@ const Header: NextPage = () => {
               >
                 <span className="is-vishidden">Menu</span>
               </a>
-              <Link href="/" className="logo-link" legacyBehavior>
+              <Link href="/" className="logo-link">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/wp-content/uploads/2020/02/tc_logo180x90.png"
@@ -108,7 +108,7 @@ const Header: NextPage = () => {
                           <ul className="subnav-channel">
                             {menu.map((menuItem, index) => (
                               <li className="menu-item" key={index}>
-                                <Link href={menuItem.link} legacyBehavior>
+                                <Link href={menuItem.link}>
                                   {menuItem.name}
                                 </Link>
                               </li>
@@ -144,7 +144,7 @@ const Header: NextPage = () => {
       >
         <div className="lc">
           <div className="lc">
-            <Link href="/" className="logo-link" legacyBehavior>
+            <Link href="/" className="logo-link">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/wp-content/uploads/2020/02/tc_logo180x90.png"
@@ -194,7 +194,7 @@ const Header: NextPage = () => {
         >
           <ul>
             <li className="mobile-header-menu-tc-logo">
-              <Link href="/" legacyBehavior>
+              <Link href="/">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/wp-content/uploads/2020/02/tc_logo180x90.png"
@@ -224,9 +224,7 @@ const Header: NextPage = () => {
                     >
                       {menu.map((menuItem, index) => (
                         <li className="menu-item" key={index}>
-                          <Link href={menuItem.link} legacyBehavior>
-                            {menuItem.name}
-                          </Link>
+                          <Link href={menuItem.link}>{menuItem.name}</Link>
                         </li>
                       ))}
                     </ul>
