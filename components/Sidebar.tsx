@@ -1,5 +1,6 @@
 import type { NextPage } from 'next'
 import Link from 'next/link'
+import Script from 'next/script'
 import { useState } from 'react'
 
 const Sidebar: NextPage = () => {
@@ -47,11 +48,11 @@ const Sidebar: NextPage = () => {
         </div>
       </div>
       <div>
-        <script
+        <Script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8137402229295875"
           crossOrigin="anonymous"
-        ></script>
+        ></Script>
         <ins
           className="adsbygoogle"
           style={{ display: 'block' }}
@@ -60,7 +61,9 @@ const Sidebar: NextPage = () => {
           data-ad-format="auto"
           data-full-width-responsive="true"
         ></ins>
-        <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+        <Script id="adsbygoogle-1">
+          (adsbygoogle = window.adsbygoogle || []).push({});
+        </Script>
       </div>
     </div>
   )
