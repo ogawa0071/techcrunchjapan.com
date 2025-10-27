@@ -1,7 +1,7 @@
 import type { NextPage } from 'next'
 import Link from 'next/link'
 import { useState } from 'react'
-import useScrollPosition from 'lib/useScrollPosition'
+import useScrollPosition from '@/lib/useScrollPosition'
 
 const menu = [
   {

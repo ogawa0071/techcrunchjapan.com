@@ -1,9 +1,9 @@
 import { GetStaticProps } from 'next'
 import type { NextPage, InferGetStaticPropsType } from 'next'
-import Header from 'components/Header'
-import Footer from 'components/Footer'
-import GlobalHead from 'components/Head'
-import prisma from 'lib/prisma'
+import Header from '@/components/Header'
+import Footer from '@/components/Footer'
+import GlobalHead from '@/components/Head'
+import { prisma } from '@/lib/prisma'
 import {
   Post as _Post,
   User,
@@ -11,9 +11,9 @@ import {
   Category,
   TagsOnPosts,
   Tag,
-} from '@prisma/client'
-import { default as HomeComponent } from 'components/Home'
-import { dateToUrl, dateToString } from 'lib/date'
+} from '@/generated/prisma/client'
+import { default as HomeComponent } from '@/components/Home'
+import { dateToUrl, dateToString } from '@/lib/date'
 import { JSDOM } from 'jsdom'
 
 export interface Post extends _Post {

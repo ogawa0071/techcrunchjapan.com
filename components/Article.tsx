@@ -1,6 +1,6 @@
 import type { NextPage } from 'next'
-import Sidebar from 'components/Sidebar'
-import { Post } from 'pages/index'
+import Sidebar from '@/components/Sidebar'
+import { Post } from '@/pages/index'
 import Link from 'next/link'
 import { useEffect } from 'react'
 

@@ -1,6 +1,6 @@
 import type { NextPage } from 'next'
 import Link from 'next/link'
-import { Post } from 'pages/index'
+import { Post } from '@/pages/index'
 
 const ArticleSidebar: NextPage<{
   post: Post

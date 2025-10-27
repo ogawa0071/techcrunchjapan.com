@@ -1,7 +1,7 @@
-import { dateToString, dateToUrl } from 'lib/date'
+import { dateToString, dateToUrl } from '@/lib/date'
 import type { NextPage } from 'next'
 import Link from 'next/link'
-import type { Post } from 'pages/index'
+import type { Post } from '@/pages/index'
 import Sidebar from './Sidebar'
 
 const Home: NextPage<{

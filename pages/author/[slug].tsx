@@ -1,7 +1,7 @@
 import type { NextPage, GetStaticProps } from 'next'
-import Header from 'components/Header'
-import Footer from 'components/Footer'
-import GlobalHead from 'components/Head'
+import Header from '@/components/Header'
+import Footer from '@/components/Footer'
+import GlobalHead from '@/components/Head'
 import {
   Tag,
   TagsOnPosts,
@@ -9,8 +9,8 @@ import {
   User as _User,
   CategoriesOnPosts,
   Category,
-} from '@prisma/client'
-import prisma from 'lib/prisma'
+} from '@/generated/prisma/client'
+import { prisma } from '@/lib/prisma'
 
 interface User extends _User {
   posts: (Post & {
