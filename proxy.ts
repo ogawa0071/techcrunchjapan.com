@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   if (req.nextUrl.pathname.startsWith('/wp-content/uploads')) {
     const url = req.nextUrl
     url.hostname = 'r2.techcrunchjapan.com'
