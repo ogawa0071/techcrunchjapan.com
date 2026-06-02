@@ -1,7 +1,6 @@
 import * as fs from 'fs'
-import prisma from './lib/prisma'
+import getPrisma from './lib/prisma'
 import { dateToUrl } from './lib/date'
-import type { Post } from '@prisma/client'
 import * as path from 'path'
 
 const host = 'https://techcrunchjapan.com'
@@ -22,7 +21,7 @@ const host = 'https://techcrunchjapan.com'
     .map((_, index) => 2006 + index)
 
   for (const year of years) {
-    const _posts = await prisma.post.findMany({
+    const _posts = await getPrisma().post.findMany({
       select: {
         slug: true,
         createdAt: true,

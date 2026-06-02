@@ -1,11 +1,13 @@
-import type { NextPage } from 'next'
 import Link from 'next/link'
-import { Post } from 'pages/index'
+import type { Post } from 'lib/posts'
 
-const ArticleSidebar: NextPage<{
+const ArticleSidebar = ({
+  post,
+  latestPosts,
+}: {
   post: Post
   latestPosts: Post[]
-}> = ({ post, latestPosts }) => {
+}) => {
   return (
     <div className="l-sidebar demo-block">
       <div className="accordion recirc-accordion">

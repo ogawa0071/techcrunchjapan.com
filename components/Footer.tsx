@@ -1,4 +1,3 @@
-import type { NextPage } from 'next'
 import Link from 'next/link'
 
 const menu = [
@@ -34,7 +33,7 @@ const menu = [
   },
 ]
 
-const Footer: NextPage = () => {
+const Footer = () => {
   return (
     <footer className="footer" role="contentinfo">
       <div className="footer-content">

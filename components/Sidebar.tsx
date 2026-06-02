@@ -1,9 +1,10 @@
-import type { NextPage } from 'next'
+'use client'
+
 import Link from 'next/link'
 import Script from 'next/script'
 import { useState } from 'react'
 
-const Sidebar: NextPage = () => {
+const Sidebar = () => {
   const [toggle, setToggle] = useState<boolean>(false)
 
   return (
