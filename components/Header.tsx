@@ -1,4 +1,5 @@
-import type { NextPage } from 'next'
+'use client'
+
 import Link from 'next/link'
 import { useState } from 'react'
 import useScrollPosition from 'lib/useScrollPosition'
@@ -50,10 +51,11 @@ const menu = [
   },
 ]
 
-const Header: NextPage = () => {
+const Header = () => {
   const [menuOpen, setMenuOpen] = useState<boolean>(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false)
   const scrollPosition = useScrollPosition()
+  const isBrowser = typeof window !== 'undefined'
 
   return (
     <>
@@ -61,7 +63,7 @@ const Header: NextPage = () => {
         className="header header-fixed-mobile cf header-context-null"
         role="banner"
         style={
-          70 < scrollPosition && window.innerWidth < 476
+          isBrowser && 70 < scrollPosition && window.innerWidth < 476
             ? { position: 'fixed' }
             : { position: 'static' }
         }
@@ -137,7 +139,7 @@ const Header: NextPage = () => {
       <div
         className="sticky-header"
         style={
-          70 < scrollPosition && 476 <= window.innerWidth
+          isBrowser && 70 < scrollPosition && 476 <= window.innerWidth
             ? { position: 'fixed', top: 0, left: 0, display: 'block' }
             : { position: 'fixed', top: 0, left: 0, display: 'none' }
         }

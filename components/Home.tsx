@@ -1,12 +1,8 @@
-import { dateToString, dateToUrl } from 'lib/date'
-import type { NextPage } from 'next'
 import Link from 'next/link'
-import type { Post } from 'pages/index'
+import type { Post } from 'lib/posts'
 import Sidebar from './Sidebar'
 
-const Home: NextPage<{
-  posts: Post[]
-}> = ({ posts }) => {
+const Home = ({ posts }: { posts: Post[] }) => {
   return (
     <>
       <div role="main" className="fluid flush split homepage">

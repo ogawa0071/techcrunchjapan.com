@@ -1,13 +1,17 @@
-import type { NextPage } from 'next'
+'use client'
+
 import Sidebar from 'components/Sidebar'
-import { Post } from 'pages/index'
+import type { Post } from 'lib/posts'
 import Link from 'next/link'
 import { useEffect } from 'react'
 
-const Article: NextPage<{
+const Article = ({
+  post,
+  children,
+}: {
   post: Post
   children?: React.ReactNode
-}> = ({ post, children }) => {
+}) => {
   useEffect(() => {
     document.body.classList.add('single-post')
 
