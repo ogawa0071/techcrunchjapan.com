@@ -1,34 +1,91 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# techcrunchjapan.com
 
-## Getting Started
+TechCrunch Japan のアーカイブサイトです。[Void](https://void.cloud)（Vite ベースの Cloudflare Workers 向けフルスタックフレームワーク）で動いています。
 
-First, run the development server:
+- UI: React（[Islands](https://void.cloud/guide/pages-routing/islands)）。記事本文などは静的 HTML としてサーバーで描画し、ヘッダーのメニューとサイドバーの開閉だけをブラウザでハイドレートします。
+- データベース: TiDB Serverless（MySQL 互換）。本番では Cloudflare Hyperdrive 経由で接続します。
+- キャッシュ: 描画したページは Void の ISR で 30 日間エッジにキャッシュします。
 
-```bash
-npm run dev
-# or
-yarn dev
+## 構成
+
+```
+pages/                      ページ（ファイルベースルーティング）
+  layout.island.tsx         全ページ共通のレイアウト（Header は island）
+  index.island.tsx          / トップページ
+  index.server.ts           トップページのローダーと head
+  [year]/[month]/[day]/
+    [slug].island.tsx       /2022/03/31/slug/ 記事ページ
+    [slug].server.ts        記事ページのローダーと head
+  author/ category/ tag/ search/
+                            アーカイブ作成中のページ
+routes/
+  api/posts.ts              GET /api/posts
+  wp-content/uploads/       /wp-content/uploads/* を R2（r2.techcrunchjapan.com）からプロキシ
+middleware/
+  01.trailing-slash.ts      末尾スラッシュ付き URL（WordPress 時代の URL）を維持
+db/
+  schema.ts                 Drizzle スキーマ（Prisma が作成した既存テーブルに対応）
+  migrations/               マイグレーション
+src/
+  components/               React コンポーネント
+  lib/                      DB クエリ、日付、head などのユーティリティ
+scripts/sitemap.ts          public/{year}.xml のサイトマップ生成
+public/                     静的ファイル（CSS、画像、サイトマップ、ads.txt など）
+void.config.ts              Void の設定（DB、head、ISR、リダイレクト）
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 開発
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+プロジェクト直下に `.env` を作成し、接続先のデータベースを設定します（Void が読み込むのは `.env` だけです）。
 
-[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
+```ini
+# TiDB Serverless は TLS が必須なので ssl パラメーターを付けます
+DATABASE_URL=mysql://USER:PASSWORD@HOST:4000/DATABASE?ssl={"rejectUnauthorized":true}
+```
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
+```bash
+bun install
+bun run dev
+```
 
-## Learn More
+http://localhost:5173 で確認できます。開発中は `.env` の `DATABASE_URL` に直接接続します。
 
-To learn more about Next.js, take a look at the following resources:
+ローカルの MySQL を使う場合は、空のデータベースを作成してからテーブルを作成します。
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+bunx void db migrate
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+その他のコマンド:
 
-## Deploy on Vercel
+```bash
+bun run build      # 本番ビルド（dist/）
+bun run preview    # ビルド結果を workerd でプレビュー
+bun run typecheck  # 型チェック
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## デプロイ
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+Cloudflare アカウントへ直接デプロイします。本番の `DATABASE_URL` を環境変数で渡すと、Void が Hyperdrive を作成し、未適用のマイグレーションを適用してから Worker をアップロードします（`DATABASE_URL` は Worker の設定には書き込まれません）。
+
+```bash
+DATABASE_URL='mysql://...' bun run deploy -- --platform cloudflare
+```
+
+- 初回はブラウザで Cloudflare にログインします。2 回目以降は保存した設定を使うので `bun run deploy` だけで済みます。
+- デプロイで生成される `void.lock.json`（リソース ID とマイグレーション履歴）はコミットしてください。
+- カスタムドメインは `bunx void domain add techcrunchjapan.com` で追加します。
+
+### 既存データベースについて
+
+`db/migrations/20261018175830_prisma_baseline.sql` は、Prisma が作成した既存テーブルに対応するベースラインです。すべて `CREATE TABLE IF NOT EXISTS` なので、本番データベースに対しては何も変更せず、`_void_migrations` テーブルに適用済みとして記録されるだけです。空のデータベースではテーブルを作成します。
+
+スキーマを変更するときは `db/schema.ts` を編集して `bunx void db generate` を実行し、生成されたマイグレーションを確認してからコミットします。
+
+## サイトマップ
+
+アーカイブは更新されないため、サイトマップは静的ファイル（`public/sitemap.xml` と `public/{year}.xml`）です。再生成する場合は `.env` に本番の `DATABASE_URL` を設定して実行します。
+
+```bash
+bun run sitemap
+```
