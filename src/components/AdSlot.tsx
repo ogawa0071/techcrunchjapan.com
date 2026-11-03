@@ -1,4 +1,4 @@
-import { ClientOnly, useRouterState } from '@tanstack/react-router'
+import { ClientOnly, useMatches } from '@tanstack/react-router'
 import { useEffect } from 'react'
 
 const ADSENSE_CLIENT = 'ca-pub-8137402229295875'
@@ -48,17 +48,18 @@ function AdUnit({ slot }: { slot: string }) {
 
 /**
  * A responsive AdSense unit. Rendered on the client only (adsbygoogle.js mutates the
- * <ins>, which React would report as a hydration mismatch), and keyed by the committed
- * location so that every page view - client-side navigations and ?page=N included -
- * requests one fresh ad.
+ * <ins>, which React would report as a hydration mismatch), and keyed by the current leaf
+ * match (route + params + loader deps such as ?page=N), which is committed together with
+ * the page: every page view requests exactly one ad, while hash or tracking-parameter
+ * changes do not.
  */
 export function AdSlot({ slot }: { slot: string }) {
-  const href = useRouterState({
-    select: (state) => (state.resolvedLocation ?? state.location).href,
+  const matchId = useMatches({
+    select: (matches) => matches[matches.length - 1]?.id ?? '',
   })
   return (
     <ClientOnly fallback={null}>
-      <AdUnit key={href} slot={slot} />
+      <AdUnit key={matchId} slot={slot} />
     </ClientOnly>
   )
 }

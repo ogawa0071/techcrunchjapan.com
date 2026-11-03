@@ -62,7 +62,10 @@ export interface PostInput {
   slug: string
 }
 
-/** An article, or the canonical path to redirect to (the loader keeps the query string). */
+/**
+ * An article, or its canonical path to redirect to. On full page loads the server entry
+ * adds the visitor's query string to the redirect.
+ */
 export type PostResult = { post: PostDetail } | { redirectTo: string }
 
 export const getPost = createServerFn({ method: 'GET' })

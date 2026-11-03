@@ -46,10 +46,7 @@
   // "placement": { "region": "aws:ap-northeast-1" },
 
   // Production domain, once ready to switch over from Vercel (remove Vercel's DNS records
-  // first). www is redirected to the apex by the Worker. Set "workers_dev" to false then.
-  // "routes": [
-  //   { "pattern": "techcrunchjapan.com", "custom_domain": true },
-  //   { "pattern": "www.techcrunchjapan.com", "custom_domain": true },
-  // ],
+  // first; redirect www with a zone Redirect Rule). Set "workers_dev" to false then.
+  // "routes": [{ "pattern": "techcrunchjapan.com", "custom_domain": true }],
   "workers_dev": true,
 }

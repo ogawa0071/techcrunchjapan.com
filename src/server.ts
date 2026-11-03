@@ -156,7 +156,7 @@ function withCacheHeaders(
   const ttl = edgeTtl(response)
   if (ttl === undefined) return response
   const result = new Response(response.body, response)
-  result.headers.set('Cache-Control', 'public, max-age=0, must-revalidate')
+  result.headers.set('Cache-Control', 'public, max-age=0')
   result.headers.set(
     'Cloudflare-CDN-Cache-Control',
     `public, max-age=${ttl}, stale-while-revalidate=${ttl}`,
@@ -251,7 +251,12 @@ async function respond(
       }
       // WordPress shortlinks (`/?p=<post id>`), resolved by the archives route.
       const id = url.searchParams.get('p')
-      if (id && /^\d+$/.test(id)) return redirectTo(`/archives/${id}/`)
+      if (id && /^\d+$/.test(id)) {
+        const rest = new URLSearchParams(url.searchParams)
+        rest.delete('p')
+        const query = rest.toString()
+        return redirectTo(`/archives/${id}/${query ? `?${query}` : ''}`)
+      }
     }
 
     const canonical = canonicalPath(url.pathname)

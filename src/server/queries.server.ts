@@ -65,6 +65,16 @@ async function withCategories<T extends { id: number }>(
 
 const newestFirst = [desc(posts.createdAt), desc(posts.id)]
 
+/**
+ * Stored slugs that a requested slug may refer to: itself, and for slugs longer than the
+ * legacy column width (links that predate the truncation) its 191-character prefix.
+ */
+function slugCandidates(slug: string): string[] {
+  return slug.length > LEGACY_SLUG_LENGTH
+    ? [slug, slug.slice(0, LEGACY_SLUG_LENGTH)]
+    : [slug]
+}
+
 type PostFilter =
   | { kind: 'all' }
   | { kind: 'category'; id: number }
@@ -142,10 +152,6 @@ export async function getPostBySlug(
   db: Database,
   slug: string,
 ): Promise<PostDetail | undefined> {
-  const candidates =
-    slug.length > LEGACY_SLUG_LENGTH
-      ? [slug, slug.slice(0, LEGACY_SLUG_LENGTH)]
-      : [slug]
   const [post] = await db
     .select({
       ...summaryColumns,
@@ -154,7 +160,7 @@ export async function getPostBySlug(
     })
     .from(posts)
     .innerJoin(authors, eq(authors.id, posts.authorId))
-    .where(inArray(posts.slug, candidates))
+    .where(inArray(posts.slug, slugCandidates(slug)))
     .orderBy(desc(sql`length(${posts.slug})`))
     .limit(1)
   if (!post) return undefined
@@ -186,7 +192,8 @@ export async function getPostLocationBySlug(
   const [post] = await db
     .select({ slug: posts.slug, createdAt: posts.createdAt })
     .from(posts)
-    .where(eq(posts.slug, slug))
+    .where(inArray(posts.slug, slugCandidates(slug)))
+    .orderBy(desc(sql`length(${posts.slug})`))
     .limit(1)
   return post
 }

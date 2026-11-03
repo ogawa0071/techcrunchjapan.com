@@ -87,7 +87,10 @@ export function canonicalOriginUrl(
   const site = new URL(origin)
   const isWww = url.hostname === `www.${site.hostname}`
   const isPlainHttp = url.hostname === site.hostname && url.protocol === 'http:'
-  return isWww || isPlainHttp
-    ? `${site.origin}${url.pathname}${url.search}`
-    : undefined
+  if (!isWww && !isPlainHttp) return undefined
+  // Path fixes are applied in the same hop (uploads are kept as they are).
+  const path = url.pathname.startsWith('/wp-content/uploads/')
+    ? url.pathname
+    : canonicalPath(url.pathname)
+  return `${site.origin}${path}${url.search}`
 }

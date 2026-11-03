@@ -35,6 +35,7 @@ const escapeXml = (value: string) =>
 const jstYear = (date: Date) => Number(datePath(date).slice(1, 5))
 
 const client = new Client({ connectionString: databaseUrl })
+client.on('error', () => {}) // reported through the failing query
 await client.connect()
 const db = drizzle({ client })
 

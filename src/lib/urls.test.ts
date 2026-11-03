@@ -109,6 +109,12 @@ describe('canonicalOriginUrl', () => {
     )
   })
 
+  it('applies the path fixes in the same hop', () => {
+    expect(
+      redirect('http://www.techcrunchjapan.com/category/startups?utm=1'),
+    ).toBe('https://techcrunchjapan.com/category/startups/?utm=1')
+  })
+
   it('leaves the canonical origin and other hosts alone', () => {
     expect(redirect('https://techcrunchjapan.com/')).toBeUndefined()
     expect(redirect('http://localhost:5173/')).toBeUndefined()

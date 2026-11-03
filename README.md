@@ -38,7 +38,7 @@ public/                静的ファイル（テーマ CSS・画像、サイト�
 bun install
 ```
 
-接続先の DB を `.env` に書きます（`.env.example` 参照）。`DATABASE_URL` はマイグレーションとスクリプト用、`CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` は開発サーバー用です。どちらも指定しなければ `wrangler.jsonc` の `localConnectionString`（`postgres:postgres@localhost:5432/techcrunchjapan`）が使われます。
+接続先の DB を `.env` に書きます（`.env.example` 参照）。`DATABASE_URL` はマイグレーションとスクリプト用で、必須です。開発サーバーは `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` を使い、指定しなければ `wrangler.jsonc` の `localConnectionString`（`postgres:postgres@localhost:5432/techcrunchjapan`、`.env.example` の `DATABASE_URL` と同じ DB）に接続します。
 
 ```bash
 cp .env.example .env
@@ -113,10 +113,11 @@ bun run dev
 
 6. **ドメインの切り替え**:
    1. Cloudflare DNS にある Vercel 向けのレコード（`techcrunchjapan.com` と `www.techcrunchjapan.com`）を削除します。
-   2. `wrangler.jsonc` の `routes`（カスタムドメイン）のコメントを外し、`workers_dev` を `false` にして再度デプロイします。DNS レコードと証明書は Cloudflare が作成します。www へのアクセスは Worker が `https://techcrunchjapan.com/…` へ 301 リダイレクトします。
-   3. Vercel で自動だった HTTPS への転送と HSTS は、Worker が HTTP のアクセスを HTTPS へリダイレクトし、`Strict-Transport-Security` ヘッダーを付けることで引き継いでいます。静的ファイルも含めて確実にするため、Cloudflare のゾーン設定で「Always Use HTTPS」も有効にしてください。
-   4. ゾーンのセキュリティ設定（Bot Fight Mode など）が `r2.techcrunchjapan.com` へのアクセスにチャレンジを出していないか確認します（Worker が画像を取得できなくなります）。
-   5. 最後に Vercel のプロジェクトを削除します。
+   2. `wrangler.jsonc` の `routes`（カスタムドメイン）のコメントを外し、`workers_dev` を `false` にして再度デプロイします。DNS レコードと証明書は Cloudflare が作成します。
+   3. www は Worker に割り当てず、ゾーンの Redirect Rules で `www.techcrunchjapan.com/*` を `https://techcrunchjapan.com/${1}`（301、クエリ文字列を保持）へ転送します。www には転送用の DNS レコード（プロキシ有効の `AAAA 100::` など）が必要です。
+   4. Vercel で自動だった HTTPS への転送と HSTS は、Worker が HTTP のアクセスを HTTPS へリダイレクトし、`Strict-Transport-Security` ヘッダーを付けることで引き継いでいます。静的ファイルも含めて確実にするため、ゾーン設定の「Always Use HTTPS」も有効にしてください。
+   5. ゾーンのセキュリティ設定（Bot Fight Mode など）が `r2.techcrunchjapan.com` へのアクセスにチャレンジを出していないか確認します（Worker が画像を取得できなくなります）。
+   6. 最後に Vercel のプロジェクトを削除します。
 
 7. **サイトマップの再生成**（任意）: Neon のデータから `lastmod` 付きのサイトマップを作り直してコミットします。
 
@@ -134,7 +135,7 @@ SSR を行うため **Workers Paid プラン**（月 5 ドル〜）を推奨し�
 
 - **静的ファイル**（`public/`、ビルド済み JS / CSS）は Worker を通らずに配信されます。キャッシュ期間は `public/_headers` で指定しています。
 - **ページと、クライアント遷移時のデータ（GET `/_serverFn/…`）** は、既定では Worker が Cache API でデータセンターごとに 30 日間キャッシュします（旧 ISR の `revalidate` と同じ）。404 は 1 日です。キャッシュキーにデプロイのバージョンを含めているため、デプロイすると新しいキャッシュに切り替わります。レスポンスヘッダー `X-Edge-Cache` で HIT / MISS を確認できます。ブラウザには毎回再検証させます（`Cache-Control: max-age=0`）。
-- Workers Paid プランなら Cloudflare の [Workers Cache](https://developers.cloudflare.com/workers/cache/) への切り替えをおすすめします。ヒット時は Worker を実行せずに階層型の共有キャッシュから返し、期限切れのページは裏で再生成されます（ISR と同じ動き）。`wrangler.jsonc` の `"cache": { "enabled": true }` のコメントを外し、`vars.EDGE_CACHE` を `"none"` にします。Worker はそのためのヘッダー（`Cloudflare-CDN-Cache-Control`）を常に付けています。Workers Cache を有効にすると静的ファイルへのリクエストも Worker のリクエストとして課金されます。また、キャッシュミス時に DB の近くで実行するよう `placement` の設定もコメントで用意しています。
+- Workers Paid プランなら Cloudflare の [Workers Cache](https://developers.cloudflare.com/workers/cache/) への切り替えをおすすめします。ヒット時は Worker を実行せずに階層型の共有キャッシュから返し、期限切れのページは裏で再生成されます（ISR と同じ動き）。`wrangler.jsonc` の `"cache": { "enabled": true }` のコメントを外し、`vars.EDGE_CACHE` を `"none"` にします。Worker はそのためのヘッダー（`Cloudflare-CDN-Cache-Control`）を常に付けています。注意点: Workers Cache を有効にすると静的ファイルへのリクエストも Worker のリクエストとして課金されます。また、キャッシュのキーはパスとクエリ文字列そのもの（ホストは含まない）なので、`utm_*` などが付いたアクセスは別エントリになり、www や HTTP の転送はゾーンのルール（上記）で行う必要があります。キャッシュミス時に DB の近くで実行するための `placement` の設定もコメントで用意しています。
 - **画像**（`/wp-content/uploads/*`）は R2 から取得し、Cloudflare のキャッシュに 1 年間（404 は 1 日）保存します。
 
 ## 旧構成（Vercel + Next.js + TiDB + Prisma）からの変更点
