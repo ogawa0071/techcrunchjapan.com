@@ -38,9 +38,16 @@ function redirectTo(location: string): Response {
  * Media of the original WordPress site, stored in R2 (public bucket). Proxied rather
  * than redirected so that article HTML can keep its `/wp-content/uploads/…` URLs.
  */
-async function proxyUpload(request: Request, url: URL, env: Env): Promise<Response> {
+async function proxyUpload(
+  request: Request,
+  url: URL,
+  env: Env,
+): Promise<Response> {
   if (request.method !== 'GET' && request.method !== 'HEAD') {
-    return new Response('Method Not Allowed', { status: 405, headers: { Allow: 'GET, HEAD' } })
+    return new Response('Method Not Allowed', {
+      status: 405,
+      headers: { Allow: 'GET, HEAD' },
+    })
   }
   const upstream = uploadUrl(url.pathname, env.UPLOADS_ORIGIN)
   const headers = new Headers()
@@ -54,7 +61,8 @@ async function proxyUpload(request: Request, url: URL, env: Env): Promise<Respon
     cf: { cacheEverything: true, cacheTtl: 365 * DAY },
   })
   const proxied = new Response(response.body, response)
-  if (response.ok) proxied.headers.set('Cache-Control', 'public, max-age=31536000, immutable')
+  if (response.ok)
+    proxied.headers.set('Cache-Control', 'public, max-age=31536000, immutable')
   return proxied
 }
 
@@ -80,7 +88,11 @@ async function withEdgeCache(
   const response = await render()
   const ttl = EDGE_TTL[response.status]
   const cacheControl = response.headers.get('Cache-Control') ?? ''
-  if (!ttl || response.headers.has('Set-Cookie') || /no-store|private/i.test(cacheControl)) {
+  if (
+    !ttl ||
+    response.headers.has('Set-Cookie') ||
+    /no-store|private/i.test(cacheControl)
+  ) {
     return response
   }
 
@@ -94,7 +106,10 @@ async function withEdgeCache(
 function forClient(response: Response, cacheStatus: 'HIT' | 'MISS'): Response {
   const ttl = EDGE_TTL[response.status] ?? 0
   const result = new Response(response.body, response)
-  result.headers.set('Cache-Control', `public, max-age=0, s-maxage=${ttl}, must-revalidate`)
+  result.headers.set(
+    'Cache-Control',
+    `public, max-age=0, s-maxage=${ttl}, must-revalidate`,
+  )
   result.headers.set('X-Edge-Cache', cacheStatus)
   return result
 }
@@ -104,7 +119,8 @@ export default {
     const url = new URL(request.url)
     const isRead = request.method === 'GET' || request.method === 'HEAD'
 
-    if (url.pathname.startsWith('/wp-content/uploads/')) return proxyUpload(request, url, env)
+    if (url.pathname.startsWith('/wp-content/uploads/'))
+      return proxyUpload(request, url, env)
 
     if (isRead && !url.pathname.startsWith(SERVER_FN_PREFIX)) {
       // WordPress search URLs (`/?s=…`); also the no-JavaScript fallback of <SearchForm>.
@@ -118,7 +134,8 @@ export default {
 
       // Existing static files are served before the Worker runs, so a file-like path that
       // gets here does not exist (e.g. /favicon.ico or stale /assets/*.js after a deploy).
-      if (isFileLike(url.pathname)) return new Response('Not Found', { status: 404 })
+      if (isFileLike(url.pathname))
+        return new Response('Not Found', { status: 404 })
     }
 
     if (request.method !== 'GET') return handler.fetch(request)

@@ -28,7 +28,8 @@ function toText(value: unknown, maxLength = 1000): string {
 
 /** Listings past their last page are 404s rather than empty pages. */
 function existingPage<T extends PostPage>(result: T | undefined): T {
-  if (!result || (result.page > 1 && result.posts.length === 0)) throw notFound()
+  if (!result || (result.page > 1 && result.posts.length === 0))
+    throw notFound()
   return result
 }
 
@@ -60,17 +61,17 @@ export interface PostInput {
 }
 
 export const getPost = createServerFn({ method: 'GET' })
-  .validator(
-    (data: PostInput): PostInput => ({
-      year: toText(data?.year),
-      month: toText(data?.month),
-      day: toText(data?.day),
-      slug: toText(data?.slug),
-    }),
-  )
+  .validator((data: PostInput): PostInput => ({
+    year: toText(data?.year),
+    month: toText(data?.month),
+    day: toText(data?.day),
+    slug: toText(data?.slug),
+  }))
   .handler(async ({ data }) => {
     const slug = toStoredSlug(data.slug)
-    const post = slug ? await withDb((db) => queries.getPostBySlug(db, slug)) : undefined
+    const post = slug
+      ? await withDb((db) => queries.getPostBySlug(db, slug))
+      : undefined
     if (!post) throw notFound()
 
     // One canonical URL per article: wrong dates (or legacy over-long slugs) redirect.
@@ -91,7 +92,9 @@ export const getCategoryPosts = createServerFn({ method: 'GET' })
   .handler(async ({ data }) => {
     const slug = toStoredSlug(data.slug)
     return existingPage(
-      slug ? await withDb((db) => queries.getCategoryPosts(db, slug, data.page)) : undefined,
+      slug
+        ? await withDb((db) => queries.getCategoryPosts(db, slug, data.page))
+        : undefined,
     )
   })
 
@@ -100,7 +103,9 @@ export const getTagPosts = createServerFn({ method: 'GET' })
   .handler(async ({ data }) => {
     const slug = toStoredSlug(data.slug)
     return existingPage(
-      slug ? await withDb((db) => queries.getTagPosts(db, slug, data.page)) : undefined,
+      slug
+        ? await withDb((db) => queries.getTagPosts(db, slug, data.page))
+        : undefined,
     )
   })
 
@@ -109,7 +114,9 @@ export const getAuthorPosts = createServerFn({ method: 'GET' })
   .handler(async ({ data }) => {
     const slug = toStoredSlug(data.slug)
     return existingPage(
-      slug ? await withDb((db) => queries.getAuthorPosts(db, slug, data.page)) : undefined,
+      slug
+        ? await withDb((db) => queries.getAuthorPosts(db, slug, data.page))
+        : undefined,
     )
   })
 
@@ -119,12 +126,12 @@ interface SearchInput {
 }
 
 export const searchPosts = createServerFn({ method: 'GET' })
-  .validator(
-    (data: SearchInput): SearchInput => ({
-      query: toText(data?.query, 100).trim(),
-      page: toPage(data?.page),
-    }),
-  )
+  .validator((data: SearchInput): SearchInput => ({
+    query: toText(data?.query, 100).trim(),
+    page: toPage(data?.page),
+  }))
   .handler(async ({ data }) =>
-    existingPage(await withDb((db) => queries.searchPosts(db, data.query, data.page))),
+    existingPage(
+      await withDb((db) => queries.searchPosts(db, data.query, data.page)),
+    ),
   )

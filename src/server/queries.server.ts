@@ -1,8 +1,15 @@
 import { and, desc, eq, ilike, inArray, sql, type SQL } from 'drizzle-orm'
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
 
-import { authors, categories, postCategories, posts, postTags, tags } from '../db/schema'
-import type { CategoryRef, PostDetail, PostPage, PostSummary, TermPostPage } from './types'
+import {
+  authors,
+  categories,
+  postCategories,
+  posts,
+  postTags,
+  tags,
+} from '../db/schema'
+import type { CategoryRef, PostDetail, PostPage, TermPostPage } from './types'
 
 export type Database = PgDatabase<PgQueryResultHKT>
 
@@ -39,7 +46,8 @@ type PostFilter =
   | { kind: 'author'; id: number }
   | { kind: 'title'; words: string[] }
 
-const escapeLike = (value: string) => value.replace(/[\\%_]/g, (char) => `\\${char}`)
+const escapeLike = (value: string) =>
+  value.replace(/[\\%_]/g, (char) => `\\${char}`)
 
 /**
  * One page of article summaries, newest first.
@@ -48,7 +56,11 @@ const escapeLike = (value: string) => value.replace(/[\\%_]/g, (char) => `\\${ch
  * PostgreSQL evaluates select-list subqueries for rows skipped by OFFSET too,
  * which made deep pages several seconds slow.
  */
-async function listPosts(db: Database, filter: PostFilter, page: number): Promise<PostPage> {
+async function listPosts(
+  db: Database,
+  filter: PostFilter,
+  page: number,
+): Promise<PostPage> {
   let ids = db.select({ id: posts.id }).from(posts).$dynamic()
   let where: SQL | undefined
   switch (filter.kind) {
@@ -64,7 +76,11 @@ async function listPosts(db: Database, filter: PostFilter, page: number): Promis
       where = eq(posts.authorId, filter.id)
       break
     case 'title':
-      where = and(...filter.words.map((word) => ilike(posts.title, `%${escapeLike(word)}%`)))
+      where = and(
+        ...filter.words.map((word) =>
+          ilike(posts.title, `%${escapeLike(word)}%`),
+        ),
+      )
       break
   }
   const pageIds = ids
@@ -81,7 +97,11 @@ async function listPosts(db: Database, filter: PostFilter, page: number): Promis
     .innerJoin(authors, eq(authors.id, posts.authorId))
     .orderBy(...newestFirst)
 
-  return { posts: rows.slice(0, PAGE_SIZE), page, hasNextPage: rows.length > PAGE_SIZE }
+  return {
+    posts: rows.slice(0, PAGE_SIZE),
+    page,
+    hasNextPage: rows.length > PAGE_SIZE,
+  }
 }
 
 export function getLatestPosts(db: Database, page: number): Promise<PostPage> {
@@ -92,11 +112,20 @@ export function getLatestPosts(db: Database, page: number): Promise<PostPage> {
  * Finds an article by its stored slug. Slugs longer than the legacy column width
  * (links that predate the truncation) fall back to their 191-character prefix.
  */
-export async function getPostBySlug(db: Database, slug: string): Promise<PostDetail | undefined> {
+export async function getPostBySlug(
+  db: Database,
+  slug: string,
+): Promise<PostDetail | undefined> {
   const candidates =
-    slug.length > LEGACY_SLUG_LENGTH ? [slug, slug.slice(0, LEGACY_SLUG_LENGTH)] : [slug]
+    slug.length > LEGACY_SLUG_LENGTH
+      ? [slug, slug.slice(0, LEGACY_SLUG_LENGTH)]
+      : [slug]
   const [post] = await db
-    .select({ ...summaryColumns, content: posts.content, updatedAt: posts.updatedAt })
+    .select({
+      ...summaryColumns,
+      content: posts.content,
+      updatedAt: posts.updatedAt,
+    })
     .from(posts)
     .innerJoin(authors, eq(authors.id, posts.authorId))
     .where(inArray(posts.slug, candidates))
@@ -122,7 +151,10 @@ export async function getCategoryPosts(
     .limit(1)
   if (!term) return undefined
   const { id, ...rest } = term
-  return { ...(await listPosts(db, { kind: 'category', id }, page)), term: rest }
+  return {
+    ...(await listPosts(db, { kind: 'category', id }, page)),
+    term: rest,
+  }
 }
 
 export async function getTagPosts(
@@ -131,7 +163,12 @@ export async function getTagPosts(
   page: number,
 ): Promise<TermPostPage | undefined> {
   const [term] = await db
-    .select({ id: tags.id, slug: tags.slug, name: tags.name, description: tags.description })
+    .select({
+      id: tags.id,
+      slug: tags.slug,
+      name: tags.name,
+      description: tags.description,
+    })
     .from(tags)
     .where(eq(tags.slug, slug))
     .limit(1)
@@ -161,7 +198,11 @@ export async function getAuthorPosts(
 }
 
 /** Title search; every whitespace-separated word must match (case-insensitive). */
-export function searchPosts(db: Database, query: string, page: number): Promise<PostPage> {
+export function searchPosts(
+  db: Database,
+  query: string,
+  page: number,
+): Promise<PostPage> {
   const words = query.split(/\s+/).filter(Boolean).slice(0, 5)
   return listPosts(db, { kind: 'title', words }, page)
 }

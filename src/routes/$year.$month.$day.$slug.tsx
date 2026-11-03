@@ -33,8 +33,14 @@ export const Route = createFileRoute('/$year/$month/$day/$slug')({
     return {
       meta: [
         ...meta,
-        { property: 'article:published_time', content: post.createdAt.toISOString() },
-        { property: 'article:modified_time', content: post.updatedAt.toISOString() },
+        {
+          property: 'article:published_time',
+          content: post.createdAt.toISOString(),
+        },
+        {
+          property: 'article:modified_time',
+          content: post.updatedAt.toISOString(),
+        },
       ],
       links,
       scripts: [
@@ -47,7 +53,9 @@ export const Route = createFileRoute('/$year/$month/$day/$slug')({
             mainEntityOfPage: absoluteUrl(path),
             datePublished: post.createdAt.toISOString(),
             dateModified: post.updatedAt.toISOString(),
-            ...(post.featuredMediaUrl && { image: [absoluteUrl(post.featuredMediaUrl)] }),
+            ...(post.featuredMediaUrl && {
+              image: [absoluteUrl(post.featuredMediaUrl)],
+            }),
             author: [
               {
                 '@type': 'Person',

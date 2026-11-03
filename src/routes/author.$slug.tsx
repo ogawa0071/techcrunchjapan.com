@@ -9,7 +9,8 @@ import { getAuthorPosts } from '../server/functions'
 export const Route = createFileRoute('/author/$slug')({
   validateSearch: validatePageSearch,
   loaderDeps: ({ search }) => ({ page: search.page ?? 1 }),
-  loader: ({ params, deps }) => getAuthorPosts({ data: { slug: params.slug, page: deps.page } }),
+  loader: ({ params, deps }) =>
+    getAuthorPosts({ data: { slug: params.slug, page: deps.page } }),
   head: ({ loaderData }) =>
     loaderData
       ? seo({

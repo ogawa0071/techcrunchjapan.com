@@ -7,7 +7,11 @@ describe('JST dates', () => {
   const earlyMorning = new Date('2022-03-30T15:30:00Z')
 
   it('uses the Japanese calendar day', () => {
-    expect(jstDateParts(earlyMorning)).toEqual({ year: '2022', month: '03', day: '31' })
+    expect(jstDateParts(earlyMorning)).toEqual({
+      year: '2022',
+      month: '03',
+      day: '31',
+    })
     expect(datePath(earlyMorning)).toBe('/2022/03/31')
     expect(formatDate(earlyMorning)).toBe('2022年3月31日')
   })

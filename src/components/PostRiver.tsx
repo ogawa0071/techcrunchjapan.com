@@ -37,10 +37,16 @@ export function PostRiver({ posts }: { posts: PostSummary[] }) {
                   <Link {...link}>{post.title}</Link>
                 </h2>
                 <div className="byline">
-                  <time className="timestamp" dateTime={post.createdAt.toISOString()}>
+                  <time
+                    className="timestamp"
+                    dateTime={post.createdAt.toISOString()}
+                  >
                     {formatDate(post.createdAt)}
                   </time>{' '}
-                  by <Link {...authorLink(post.author.slug)}>{post.author.name}</Link>
+                  by{' '}
+                  <Link {...authorLink(post.author.slug)}>
+                    {post.author.name}
+                  </Link>
                 </div>
                 <p className="excerpt">
                   {post.excerpt.slice(0, EXCERPT_DISPLAY_LENGTH)}

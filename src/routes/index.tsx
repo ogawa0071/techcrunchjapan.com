@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 
 import { HomeIsland } from '../components/HomeIsland'
 import { Pagination } from '../components/Pagination'
@@ -38,7 +38,9 @@ function HomePage() {
                 <div className="tabs tabs-large">
                   <ul className="tab-list tabs-no-select">
                     <li className="latest">
-                      <a className="active tabs-no-preventdefault">新着順</a>
+                      <Link to="/" className="active tabs-no-preventdefault">
+                        新着順
+                      </Link>
                     </li>
                   </ul>
                 </div>

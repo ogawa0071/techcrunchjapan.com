@@ -1,4 +1,9 @@
-import { absoluteUrl, DEFAULT_OG_IMAGE, SITE_DESCRIPTION, SITE_NAME } from './site'
+import {
+  absoluteUrl,
+  DEFAULT_OG_IMAGE,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+} from './site'
 
 export interface SeoOptions {
   /** Page title without the site name. */
@@ -14,7 +19,14 @@ export interface SeoOptions {
 }
 
 /** `head()` contents shared by every page: title, description, canonical URL and OGP. */
-export function seo({ title, description, path, image, type = 'website', noindex }: SeoOptions) {
+export function seo({
+  title,
+  description,
+  path,
+  image,
+  type = 'website',
+  noindex,
+}: SeoOptions) {
   const fullTitle = title ? `${title} | ${SITE_NAME}` : SITE_NAME
   const url = absoluteUrl(path)
   const text = description || SITE_DESCRIPTION

@@ -1,0 +1,68 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  // Setting `plugins` replaces the defaults (typescript, unicorn, oxc), so they are
+  // listed too. Rules of a plugin missing here are silently ignored.
+  "plugins": [
+    "typescript",
+    "unicorn",
+    "oxc",
+    "react",
+    "jsx-a11y",
+    "import",
+    "promise"
+  ],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn"
+  },
+  "options": {
+    // Type-aware typescript/* rules (requires the oxlint-tsgolint package).
+    "typeAware": true,
+    "reportUnusedDisableDirectives": "warn"
+  },
+  "settings": {
+    // Check TanStack Router's <Link to="..."> like <a href="...">.
+    "jsx-a11y": { "components": { "Link": "a" } }
+  },
+  // Generated files (src/routeTree.gen.ts: TanStack Router, worker-configuration.d.ts:
+  // `wrangler types`) and non-source directories.
+  "ignorePatterns": [
+    "src/routeTree.gen.ts",
+    "worker-configuration.d.ts",
+    "drizzle/",
+    "public/"
+  ],
+  "rules": {
+    // React 17+ automatic JSX runtime.
+    "react/react-in-jsx-scope": "off",
+    // eslint-plugin-react-hooks (part of next/core-web-vitals). rules-of-hooks is in
+    // the pedantic category, so it has to be enabled explicitly.
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "warn",
+    // eslint-plugin-react-refresh equivalent. Vite's Fast Refresh accepts unchanged
+    // primitive constant exports next to components.
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    "jsx-a11y/anchor-is-valid": ["warn", { "specialLink": ["to"] }],
+    "jsx-a11y/control-has-associated-label": "warn",
+    // The original WordPress theme CSS styles `[role='main']`, so keep the roles.
+    "jsx-a11y/prefer-tag-over-role": "off"
+  },
+  "overrides": [
+    {
+      // File routes export `Route` and keep their components local; TanStack Start's
+      // router plugin (code splitting) provides HMR for them.
+      "files": ["src/routes/**"],
+      "rules": { "react/only-export-components": "off" }
+    },
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx"],
+      "plugins": ["vitest"]
+    },
+    {
+      // One-off scripts process batches sequentially on purpose.
+      "files": ["scripts/**"],
+      "rules": { "no-await-in-loop": "off" }
+    }
+  ]
+}

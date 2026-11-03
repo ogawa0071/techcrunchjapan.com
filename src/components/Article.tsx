@@ -26,10 +26,16 @@ export function Article({ post }: { post: PostDetail }) {
                 <h1 className="alpha tweet-title">{post.title}</h1>
                 <div className="title-left">
                   <div className="byline">
-                    <time className="timestamp" dateTime={post.createdAt.toISOString()}>
+                    <time
+                      className="timestamp"
+                      dateTime={post.createdAt.toISOString()}
+                    >
                       {formatDate(post.createdAt)}
                     </time>{' '}
-                    by <Link {...authorLink(post.author.slug)}>{post.author.name}</Link>
+                    by{' '}
+                    <Link {...authorLink(post.author.slug)}>
+                      {post.author.name}
+                    </Link>
                   </div>
                 </div>
               </header>
@@ -38,7 +44,9 @@ export function Article({ post }: { post: PostDetail }) {
                 <div className="l-main-container">
                   <div className="l-main">
                     <div className="article-entry text">
-                      {post.featuredMediaUrl && <img src={post.featuredMediaUrl} alt="" />}
+                      {post.featuredMediaUrl && (
+                        <img src={post.featuredMediaUrl} alt="" />
+                      )}
                       {/* Trusted HTML imported from the original WordPress site. */}
                       <div dangerouslySetInnerHTML={{ __html: post.content }} />
                     </div>

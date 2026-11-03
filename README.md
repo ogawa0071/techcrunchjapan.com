@@ -4,16 +4,16 @@
 
 ## 構成
 
-| 役割                       | 使用技術                                                                                        |
-| -------------------------- | ----------------------------------------------------------------------------------------------- |
-| ホスティング               | [Cloudflare Workers](https://developers.cloudflare.com/workers/)（静的ファイルは Static Assets） |
-| フレームワーク             | [TanStack Start](https://tanstack.com/start) (React 19) + Vite 8                                 |
-| データベース               | [Neon](https://neon.com) (PostgreSQL)。Worker からは [Hyperdrive](https://developers.cloudflare.com/hyperdrive/) 経由で接続 |
-| ORM / マイグレーション     | [Drizzle ORM](https://orm.drizzle.team) / drizzle-kit                                            |
-| Lint / Format              | [Oxc](https://oxc.rs)（oxlint / oxfmt）                                                          |
-| テスト / 型チェック        | Vitest / TypeScript 7                                                                           |
-| 画像（`/wp-content/uploads/*`） | R2（`r2.techcrunchjapan.com`）を Worker がプロキシ                                        |
-| パッケージマネージャ       | Bun                                                                                             |
+| 役割                            | 使用技術                                                                                                                    |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| ホスティング                    | [Cloudflare Workers](https://developers.cloudflare.com/workers/)（静的ファイルは Static Assets）                            |
+| フレームワーク                  | [TanStack Start](https://tanstack.com/start) (React 19) + Vite 8                                                            |
+| データベース                    | [Neon](https://neon.com) (PostgreSQL)。Worker からは [Hyperdrive](https://developers.cloudflare.com/hyperdrive/) 経由で接続 |
+| ORM / マイグレーション          | [Drizzle ORM](https://orm.drizzle.team) / drizzle-kit                                                                       |
+| Lint / Format                   | [Oxc](https://oxc.rs)（oxlint / oxfmt）                                                                                     |
+| テスト / 型チェック             | Vitest / TypeScript 7                                                                                                       |
+| 画像（`/wp-content/uploads/*`） | R2（`r2.techcrunchjapan.com`）を Worker がプロキシ                                                                          |
+| パッケージマネージャ            | Bun                                                                                                                         |
 
 ```
 src/
@@ -56,21 +56,21 @@ bun run dev
 
 ### コマンド
 
-| コマンド                    | 内容                                                                  |
-| --------------------------- | --------------------------------------------------------------------- |
-| `bun run dev`               | 開発サーバー（Worker は workerd 上で動作）                             |
-| `bun run build`             | 本番ビルド（`dist/`）                                                 |
-| `bun run preview`           | 本番ビルドをローカルの workerd で実行                                 |
-| `bun run deploy`            | ビルドして Cloudflare にデプロイ                                      |
-| `bun run check`             | 型チェック・lint・フォーマット・テストをまとめて実行                  |
-| `bun run typecheck`         | `wrangler types`（`worker-configuration.d.ts` の生成）+ `tsc`         |
-| `bun run lint` / `bun run fmt` | oxlint / oxfmt                                                     |
-| `bun run test`              | Vitest                                                                |
-| `bun run db:generate`       | `src/db/schema.ts` の変更からマイグレーション SQL を生成               |
-| `bun run db:migrate`        | マイグレーションを `DATABASE_URL` の DB に適用                         |
-| `bun run db:studio`         | Drizzle Studio                                                        |
-| `bun run db:copy-from-tidb` | TiDB から Neon へデータをコピー（後述）                               |
-| `bun run sitemap`           | `public/` のサイトマップを DB から再生成                              |
+| コマンド                       | 内容                                                          |
+| ------------------------------ | ------------------------------------------------------------- |
+| `bun run dev`                  | 開発サーバー（Worker は workerd 上で動作）                    |
+| `bun run build`                | 本番ビルド（`dist/`）                                         |
+| `bun run preview`              | 本番ビルドをローカルの workerd で実行                         |
+| `bun run deploy`               | ビルドして Cloudflare にデプロイ                              |
+| `bun run check`                | 型チェック・lint・フォーマット・テストをまとめて実行          |
+| `bun run typecheck`            | `wrangler types`（`worker-configuration.d.ts` の生成）+ `tsc` |
+| `bun run lint` / `bun run fmt` | oxlint / oxfmt                                                |
+| `bun run test`                 | Vitest                                                        |
+| `bun run db:generate`          | `src/db/schema.ts` の変更からマイグレーション SQL を生成      |
+| `bun run db:migrate`           | マイグレーションを `DATABASE_URL` の DB に適用                |
+| `bun run db:studio`            | Drizzle Studio                                                |
+| `bun run db:copy-from-tidb`    | TiDB から Neon へデータをコピー（後述）                       |
+| `bun run sitemap`              | `public/` のサイトマップを DB から再生成                      |
 
 `bun run` で実行するスクリプトには `.env` が自動で読み込まれます。
 

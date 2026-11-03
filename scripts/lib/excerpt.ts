@@ -85,5 +85,7 @@ export const EXCERPT_LENGTH = 300
 /** Plain-text lead of an article, cut at `maxLength` characters (code points). */
 export function toExcerpt(html: string, maxLength = EXCERPT_LENGTH): string {
   const chars = Array.from(htmlToText(html))
-  return chars.length <= maxLength ? chars.join('') : chars.slice(0, maxLength).join('')
+  return chars.length <= maxLength
+    ? chars.join('')
+    : chars.slice(0, maxLength).join('')
 }

@@ -9,7 +9,8 @@ import { getTagPosts } from '../server/functions'
 export const Route = createFileRoute('/tag/$slug')({
   validateSearch: validatePageSearch,
   loaderDeps: ({ search }) => ({ page: search.page ?? 1 }),
-  loader: ({ params, deps }) => getTagPosts({ data: { slug: params.slug, page: deps.page } }),
+  loader: ({ params, deps }) =>
+    getTagPosts({ data: { slug: params.slug, page: deps.page } }),
   head: ({ loaderData }) =>
     loaderData
       ? seo({

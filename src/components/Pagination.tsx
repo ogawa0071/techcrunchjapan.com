@@ -1,7 +1,13 @@
 import { Link } from '@tanstack/react-router'
 
 /** Previous / next page links for the current listing (`?page=N`, omitted for page 1). */
-export function Pagination({ page, hasNextPage }: { page: number; hasNextPage: boolean }) {
+export function Pagination({
+  page,
+  hasNextPage,
+}: {
+  page: number
+  hasNextPage: boolean
+}) {
   if (page <= 1 && !hasNextPage) return null
 
   return (
@@ -9,7 +15,11 @@ export function Pagination({ page, hasNextPage }: { page: number; hasNextPage: b
       <ul className="pagination">
         {page > 1 && (
           <li>
-            <Link to="./" search={{ page: page > 2 ? page - 1 : undefined }} rel="prev">
+            <Link
+              to="./"
+              search={{ page: page > 2 ? page - 1 : undefined }}
+              rel="prev"
+            >
               &laquo; 新しい記事
             </Link>
           </li>

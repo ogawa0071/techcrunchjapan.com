@@ -32,7 +32,8 @@ export function canonicalPath(pathname: string): string {
   if (path === '/archives' || path.startsWith('/archives/')) {
     path = path.slice('/archives'.length) || '/'
   }
-  if (tryDecodeURI(path) === undefined) path = path.split('/').map(slugToPathSegment).join('/')
+  if (tryDecodeURI(path) === undefined)
+    path = path.split('/').map(slugToPathSegment).join('/')
   if (!path.endsWith('/') && !isFileLike(path)) path += '/'
   return path
 }

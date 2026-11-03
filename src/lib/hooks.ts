@@ -1,4 +1,8 @@
-import { useSyncExternalStore, type KeyboardEvent, type MouseEvent } from 'react'
+import {
+  useSyncExternalStore,
+  type KeyboardEvent,
+  type MouseEvent,
+} from 'react'
 
 /** `true` once the window is scrolled further than `threshold` px. Re-renders only when that flips. */
 export function useScrolledPast(threshold: number): boolean {

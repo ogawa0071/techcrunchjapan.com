@@ -21,7 +21,8 @@ export function SearchForm({ defaultValue = '' }: { defaultValue?: string }) {
       style={{ float: 'none', width: '100%' }}
       onSubmit={(event) => {
         event.preventDefault()
-        const query = new FormData(event.currentTarget).get('s')?.toString().trim()
+        const value = new FormData(event.currentTarget).get('s')
+        const query = typeof value === 'string' ? value.trim() : ''
         if (query) void navigate({ href: searchPath(query) })
       }}
     >

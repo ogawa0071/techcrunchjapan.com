@@ -5,10 +5,15 @@ const JST_OFFSET_MS = 9 * 60 * 60 * 1000
 
 function jstFields(date: Date) {
   const jst = new Date(date.getTime() + JST_OFFSET_MS)
-  return { year: jst.getUTCFullYear(), month: jst.getUTCMonth() + 1, day: jst.getUTCDate() }
+  return {
+    year: jst.getUTCFullYear(),
+    month: jst.getUTCMonth() + 1,
+    day: jst.getUTCDate(),
+  }
 }
 
-const pad = (value: number, length = 2) => value.toString().padStart(length, '0')
+const pad = (value: number, length = 2) =>
+  value.toString().padStart(length, '0')
 
 /** Zero-padded JST date parts as used in article URLs: `{ year: '2022', month: '03', day: '31' }`. */
 export function jstDateParts(date: Date) {

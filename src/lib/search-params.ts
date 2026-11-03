@@ -3,7 +3,9 @@ export interface PageSearch {
   page?: number
 }
 
-export function validatePageSearch(search: Record<string, unknown>): PageSearch {
+export function validatePageSearch(
+  search: Record<string, unknown>,
+): PageSearch {
   const page = Number(search.page)
   return Number.isSafeInteger(page) && page > 1 ? { page } : {}
 }

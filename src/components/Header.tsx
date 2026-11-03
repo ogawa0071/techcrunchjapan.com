@@ -27,7 +27,9 @@ export function Header() {
   const narrow = useMediaQuery('(max-width: 475px)')
 
   // Close the menus after navigating (the header persists across client-side navigations).
-  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
   const [menuPathname, setMenuPathname] = useState(pathname)
   if (pathname !== menuPathname) {
     setMenuPathname(pathname)
@@ -59,10 +61,14 @@ export function Header() {
               <div className="header-logo-bar cf js">
                 <nav className="nav-primary">
                   <ul className="nav">
-                    <li className={`nav-level1 nav-news ${menuOpen ? 'active' : ''}`}>
+                    <li
+                      className={`nav-level1 nav-news ${menuOpen ? 'active' : ''}`}
+                    >
                       <a
                         className="nav-parent icon-caret-down"
-                        {...toggleButtonProps(menuOpen, () => setMenuOpen((open) => !open))}
+                        {...toggleButtonProps(menuOpen, () =>
+                          setMenuOpen((open) => !open),
+                        )}
                       >
                         トピックス
                       </a>
@@ -98,7 +104,12 @@ export function Header() {
       </header>
       <div
         className="sticky-header"
-        style={{ position: 'fixed', top: 0, left: 0, display: scrolled && !narrow ? 'block' : 'none' }}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          display: scrolled && !narrow ? 'block' : 'none',
+        }}
       >
         <div className="lc">
           <div className="lc">
@@ -129,7 +140,9 @@ export function Header() {
         id="mobile-header-menu-nav-modal"
         className="menu-nav-modal"
         style={
-          mobileMenuOpen ? { display: 'block', zIndex: 99999999 } : { display: 'none', zIndex: 1 }
+          mobileMenuOpen
+            ? { display: 'block', zIndex: 99999999 }
+            : { display: 'none', zIndex: 1 }
         }
       >
         <div
@@ -140,7 +153,12 @@ export function Header() {
           <ul>
             <li className="mobile-header-menu-tc-logo">
               <Link to="/">
-                <img src={LOGO} alt="TechCrunch" title="TechCrunch" width="150" />
+                <img
+                  src={LOGO}
+                  alt="TechCrunch"
+                  title="TechCrunch"
+                  width="150"
+                />
               </Link>
               <button
                 type="button"
@@ -156,7 +174,10 @@ export function Header() {
                 <div className="subnavbar-title subnavbar-expand">
                   <span>トピックス</span>
                   <ul className="nav-col">
-                    <ul className="subnav-channel" data-omni-sm-delegate="gbl_mainnav">
+                    <ul
+                      className="subnav-channel"
+                      data-omni-sm-delegate="gbl_mainnav"
+                    >
                       {topics.map((topic) => (
                         <li className="menu-item" key={topic.href}>
                           <a href={topic.href}>{topic.name}</a>
@@ -176,7 +197,9 @@ export function Header() {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    <span className="nav-parent nav-item-tracking">Crunchbase</span>
+                    <span className="nav-parent nav-item-tracking">
+                      Crunchbase
+                    </span>
                   </a>
                 </div>
               </ul>

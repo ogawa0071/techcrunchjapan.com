@@ -23,7 +23,7 @@ export function Sidebar() {
                   <img
                     src="/wp-content/uploads/2020/01/20190115_bnr_funding-1.png"
                     style={{ width: '100%', height: 'auto' }}
-                    alt=""
+                    alt="資金調達の記事一覧"
                     loading="lazy"
                   />
                 </a>
@@ -33,7 +33,7 @@ export function Sidebar() {
                   <img
                     src="/wp-content/uploads/2020/01/20190106_bnr_kaossmap7-1.png"
                     style={{ width: '100%', height: 'auto' }}
-                    alt=""
+                    alt="業界別カオスマップ"
                     loading="lazy"
                   />
                 </a>

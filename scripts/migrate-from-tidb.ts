@@ -12,7 +12,7 @@ import { getTableColumns, getTableName, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core'
 import mysql, { type RowDataPacket } from 'mysql2/promise'
-import pg from 'pg'
+import { Client } from 'pg'
 
 import * as schema from '../src/db/schema'
 import { toExcerpt } from './lib/excerpt'
@@ -38,11 +38,17 @@ interface SourcePost extends RowDataPacket {
 }
 
 interface SourceCount extends RowDataPacket {
-  count: number
+  /** COUNT(*) is a BIGINT, which mysql2 may return as a string. */
+  count: number | string
 }
 
-async function countSourceRows(connection: mysql.Connection, table: string): Promise<number> {
-  const [rows] = await connection.query<SourceCount[]>(`SELECT COUNT(*) AS count FROM \`${table}\``)
+async function countSourceRows(
+  connection: mysql.Connection,
+  table: string,
+): Promise<number> {
+  const [rows] = await connection.query<SourceCount[]>(
+    `SELECT COUNT(*) AS count FROM \`${table}\``,
+  )
   return Number(rows[0]?.count ?? 0)
 }
 
@@ -65,13 +71,16 @@ function mysqlOptions(url: string): mysql.ConnectionOptions {
     // Prisma stores DATETIME columns in UTC.
     timezone: 'Z',
     // TiDB Cloud only accepts TLS connections.
-    ssl: isLocal ? undefined : { minVersion: 'TLSv1.2', rejectUnauthorized: true },
+    ssl: isLocal
+      ? undefined
+      : { minVersion: 'TLSv1.2', rejectUnauthorized: true },
   }
 }
 
 /** PostgreSQL text cannot contain NUL characters. */
 const clean = (value: string) => value.replaceAll('\0', '')
-const cleanNullable = (value: string | null) => (value === null ? null : clean(value))
+const cleanNullable = (value: string | null) =>
+  value === null ? null : clean(value)
 
 /** `SET col = excluded.col` for every column except the primary key. */
 function excludedColumns(table: PgTable, primaryKey: PgColumn) {
@@ -82,8 +91,10 @@ function excludedColumns(table: PgTable, primaryKey: PgColumn) {
   )
 }
 
-const source = await mysql.createConnection(mysqlOptions(requireEnv('SOURCE_DATABASE_URL')))
-const client = new pg.Client({ connectionString: requireEnv('DATABASE_URL') })
+const source = await mysql.createConnection(
+  mysqlOptions(requireEnv('SOURCE_DATABASE_URL')),
+)
+const client = new Client({ connectionString: requireEnv('DATABASE_URL') })
 await client.connect()
 const db = drizzle({ client, schema })
 
@@ -138,10 +149,18 @@ try {
       (id) => !authorIds.has(id),
     )
     if (missingAuthors.length > 0) {
-      console.warn(`\nCreating placeholder authors for missing ids: ${missingAuthors.join(', ')}`)
+      console.warn(
+        `\nCreating placeholder authors for missing ids: ${missingAuthors.join(', ')}`,
+      )
       await db
         .insert(schema.authors)
-        .values(missingAuthors.map((id) => ({ id, slug: `author-${id}`, name: `author-${id}` })))
+        .values(
+          missingAuthors.map((id) => ({
+            id,
+            slug: `author-${id}`,
+            name: `author-${id}`,
+          })),
+        )
         .onConflictDoNothing()
       for (const id of missingAuthors) authorIds.add(id)
     }
@@ -171,12 +190,19 @@ try {
       'SELECT postId, categoryId FROM `CategoriesOnPosts` WHERE postId IN (?)',
       [postIds],
     )
-    const validCategoryLinks = categoryLinks.filter((link) => categoryIds.has(link.categoryId))
+    const validCategoryLinks = categoryLinks.filter((link) =>
+      categoryIds.has(link.categoryId),
+    )
     skipped.categoryLinks += categoryLinks.length - validCategoryLinks.length
     if (validCategoryLinks.length > 0) {
       await db
         .insert(schema.postCategories)
-        .values(validCategoryLinks.map((link) => ({ postId: link.postId, categoryId: link.categoryId })))
+        .values(
+          validCategoryLinks.map((link) => ({
+            postId: link.postId,
+            categoryId: link.categoryId,
+          })),
+        )
         .onConflictDoNothing()
     }
 
@@ -189,16 +215,25 @@ try {
     if (validTagLinks.length > 0) {
       await db
         .insert(schema.postTags)
-        .values(validTagLinks.map((link) => ({ postId: link.postId, tagId: link.tagId })))
+        .values(
+          validTagLinks.map((link) => ({
+            postId: link.postId,
+            tagId: link.tagId,
+          })),
+        )
         .onConflictDoNothing()
     }
 
     copiedPosts += rows.length
     lastId = postIds.at(-1)!
-    if (process.stdout.isTTY) process.stdout.write(`\rPost → posts ${copiedPosts}/${totalPosts}`)
-    else if (copiedPosts % (BATCH_SIZE * 20) === 0) console.log(`Post → posts ${copiedPosts}/${totalPosts}`)
+    if (process.stdout.isTTY)
+      process.stdout.write(`\rPost → posts ${copiedPosts}/${totalPosts}`)
+    else if (copiedPosts % (BATCH_SIZE * 20) === 0)
+      console.log(`Post → posts ${copiedPosts}/${totalPosts}`)
   }
-  console.log(`${process.stdout.isTTY ? '\n' : ''}Post → posts: ${copiedPosts} rows`)
+  console.log(
+    `${process.stdout.isTTY ? '\n' : ''}Post → posts: ${copiedPosts} rows`,
+  )
 
   // --- housekeeping ---------------------------------------------------------------------------
   // Explicit ids were inserted into identity columns: move the sequences past them.
@@ -227,7 +262,12 @@ try {
     const { rows } = await client.query<{ count: number }>(
       `SELECT COUNT(*)::int AS count FROM ${to}`,
     )
-    report.push({ source: from, target: to, sourceCount, targetCount: rows[0]!.count })
+    report.push({
+      source: from,
+      target: to,
+      sourceCount,
+      targetCount: rows[0]!.count,
+    })
   }
   console.table(report)
   if (skipped.categoryLinks || skipped.tagLinks) {

@@ -11,7 +11,9 @@ import type { Database } from '../server/queries.server'
  * through Hyperdrive, which keeps a warm pool to Neon close to the database.
  */
 export async function withDb<T>(fn: (db: Database) => Promise<T>): Promise<T> {
-  const client = new Client({ connectionString: env.HYPERDRIVE.connectionString })
+  const client = new Client({
+    connectionString: env.HYPERDRIVE.connectionString,
+  })
   await client.connect()
   try {
     return await fn(drizzle({ client }))

@@ -9,7 +9,8 @@ import { getCategoryPosts } from '../server/functions'
 export const Route = createFileRoute('/category/$slug')({
   validateSearch: validatePageSearch,
   loaderDeps: ({ search }) => ({ page: search.page ?? 1 }),
-  loader: ({ params, deps }) => getCategoryPosts({ data: { slug: params.slug, page: deps.page } }),
+  loader: ({ params, deps }) =>
+    getCategoryPosts({ data: { slug: params.slug, page: deps.page } }),
   head: ({ loaderData }) =>
     loaderData
       ? seo({

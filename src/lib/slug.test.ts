@@ -8,7 +8,9 @@ const routerParam = (segment: string) => decodeURIComponent(segment)
 describe('slugToPathSegment', () => {
   it('keeps valid slugs verbatim (lowercase escapes included)', () => {
     expect(slugToPathSegment('final')).toBe('final')
-    expect(slugToPathSegment('dapper%e3%81%a7weathercom')).toBe('dapper%e3%81%a7weathercom')
+    expect(slugToPathSegment('dapper%e3%81%a7weathercom')).toBe(
+      'dapper%e3%81%a7weathercom',
+    )
   })
 
   it('escapes only the broken tail of slugs truncated mid-escape', () => {

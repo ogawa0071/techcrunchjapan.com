@@ -29,7 +29,10 @@ export const Route = createRootRoute({
       { name: 'robots', content: 'max-image-preview:large' },
     ],
     links: [
-      { rel: 'icon', href: '/wp-content/uploads/2021/05/cropped-logo_tc-1.png' },
+      {
+        rel: 'icon',
+        href: '/wp-content/uploads/2021/05/cropped-logo_tc-1.png',
+      },
       // The original theme stylesheet (static asset in public/).
       { rel: 'stylesheet', href: '/index.css' },
     ],

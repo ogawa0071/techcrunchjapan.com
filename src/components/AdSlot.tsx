@@ -37,7 +37,9 @@ function AdUnit({ slot }: { slot: string }) {
  * that every page view - client-side navigations included - requests a fresh ad.
  */
 export function AdSlot({ slot }: { slot: string }) {
-  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
   return (
     <ClientOnly fallback={null}>
       <AdUnit key={pathname} slot={slot} />

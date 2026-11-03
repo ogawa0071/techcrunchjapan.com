@@ -55,7 +55,11 @@ export function Footer() {
               <div>
                 <ul className="footer-links-about">
                   <li className="menu-item menu-item-type-custom menu-item-object-custom menu-item-133012">
-                    <a href="https://techcrunch.com" target="_blank" rel="noreferrer">
+                    <a
+                      href="https://techcrunch.com"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
                       米国版
                     </a>
                   </li>

@@ -10,7 +10,8 @@ import { searchPosts } from '../server/functions'
 export const Route = createFileRoute('/search/$query')({
   validateSearch: validatePageSearch,
   loaderDeps: ({ search }) => ({ page: search.page ?? 1 }),
-  loader: ({ params, deps }) => searchPosts({ data: { query: params.query, page: deps.page } }),
+  loader: ({ params, deps }) =>
+    searchPosts({ data: { query: params.query, page: deps.page } }),
   head: ({ params, loaderData }) =>
     seo({
       title: `「${params.query}」の検索結果`,
