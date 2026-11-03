@@ -1,11 +1,5 @@
-import {
-  index,
-  integer,
-  pgTable,
-  primaryKey,
-  text,
-  timestamp,
-} from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
+import { index, integer, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
 
 // IDs are the original WordPress IDs, so they are inserted explicitly by the
 // data migration. "BY DEFAULT" identity still allows that while keeping
@@ -66,6 +60,9 @@ export const posts = pgTable(
     // Listings are ordered by (created_at DESC, id DESC); both are read backwards.
     index('posts_created_at_id_idx').on(t.createdAt, t.id),
     index('posts_author_id_created_at_id_idx').on(t.authorId, t.createdAt, t.id),
+    // Title search (`ILIKE '%…%'`) for terms of 3+ characters; needs the pg_trgm extension,
+    // created by the first migration.
+    index('posts_title_trgm_idx').using('gin', sql`${t.title} gin_trgm_ops`),
   ],
 )
 

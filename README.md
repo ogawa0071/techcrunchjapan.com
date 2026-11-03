@@ -77,7 +77,7 @@ bun run dev
 ## 本番環境の構築（初回のみ）
 
 1. **Neon** でプロジェクトを作成します（リージョンは AWS Asia Pacific (Tokyo) を推奨）。
-2. **テーブル作成**: Neon の接続文字列（pooler ではない direct 接続）でマイグレーションを適用します。
+2. **テーブル作成**: Neon の direct 接続文字列（`-pooler` が付かない方）でマイグレーションを適用します。タイトル検索用の `pg_trgm` 拡張もここで作成されます。
 
    ```bash
    DATABASE_URL="postgresql://…neon.tech/neondb?sslmode=require" bun run db:migrate
@@ -91,11 +91,13 @@ bun run dev
    bun run db:copy-from-tidb
    ```
 
-4. **Hyperdrive** を作成し、表示された id を `wrangler.jsonc` の `hyperdrive[0].id` に設定します。
+4. **Hyperdrive** を作成し、表示された id を `wrangler.jsonc` の `hyperdrive[0].id` に設定します。接続文字列は Neon の direct 接続（`-pooler` が付かない方）を使います。データは更新されないので、クエリキャッシュは上限の 1 時間にしています（既定は 60 秒）。
 
    ```bash
-   bunx wrangler hyperdrive create techcrunchjapan --connection-string="postgresql://…neon.tech/neondb?sslmode=require"
+   bunx wrangler hyperdrive create techcrunchjapan --max-age=3600 --connection-string="postgresql://…neon.tech/neondb?sslmode=require"
    ```
+
+   Hyperdrive は Workers の無料プランでも使えますが、1 日あたり 10 万クエリ（キャッシュヒットを含む）の上限があります。ページはエッジでキャッシュするため、通常はこの上限より十分少なくなります。
 
 5. **デプロイ**して `*.workers.dev` で動作を確認します（エッジキャッシュはカスタムドメインでのみ有効です）。
 

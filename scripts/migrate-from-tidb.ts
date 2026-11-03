@@ -195,9 +195,10 @@ try {
 
     copiedPosts += rows.length
     lastId = postIds.at(-1)!
-    process.stdout.write(`\rPost → posts ${copiedPosts}/${totalPosts}`)
+    if (process.stdout.isTTY) process.stdout.write(`\rPost → posts ${copiedPosts}/${totalPosts}`)
+    else if (copiedPosts % (BATCH_SIZE * 20) === 0) console.log(`Post → posts ${copiedPosts}/${totalPosts}`)
   }
-  process.stdout.write('\n')
+  console.log(`${process.stdout.isTTY ? '\n' : ''}Post → posts: ${copiedPosts} rows`)
 
   // --- housekeeping ---------------------------------------------------------------------------
   // Explicit ids were inserted into identity columns: move the sequences past them.
@@ -208,7 +209,8 @@ try {
       ),
     )
   }
-  await db.execute(sql`ANALYZE`)
+  // Planner statistics, plus the visibility map that index-only scans (deep pages) rely on.
+  await db.execute(sql`VACUUM ANALYZE`)
 
   // --- verification ---------------------------------------------------------------------------
   const pairs = [
