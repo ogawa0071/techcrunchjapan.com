@@ -1,7 +1,7 @@
 import handler from '@tanstack/react-start/server-entry'
 
 import { searchPath } from './lib/paths'
-import { slugToPathSegment } from './lib/slug'
+import { canonicalPath, isFileLike, uploadUrl } from './lib/urls'
 
 declare global {
   // Route code is isomorphic, so tsconfig keeps the DOM lib, whose CacheStorage type
@@ -11,7 +11,6 @@ declare global {
   }
 }
 
-const UPLOADS_PREFIX = '/wp-content/uploads/'
 const SERVER_FN_PREFIX = '/_serverFn/'
 
 const DAY = 24 * 60 * 60
@@ -25,41 +24,6 @@ const EDGE_TTL: Partial<Record<number, number>> = {
   200: 30 * DAY,
   301: 30 * DAY,
   404: DAY,
-}
-
-/**
- * Returns the decoded path or `undefined`. The result must be used: Vite 8 (Rolldown)
- * treats decodeURI as pure and removes calls whose result is unused, even in try/catch.
- */
-function tryDecodeURI(path: string): string | undefined {
-  try {
-    return decodeURI(path)
-  } catch {
-    return undefined
-  }
-}
-
-/** The last path segment contains a dot (`/favicon.ico`, `/assets/x.js`). */
-function isFileLike(pathname: string): boolean {
-  return pathname.slice(pathname.lastIndexOf('/') + 1).includes('.')
-}
-
-/**
- * All legacy / canonical URL fixes in one place, so that clients get at most one 301:
- * - `/archives/…` (WordPress) → `/…`
- * - slugs truncated mid-escape (`…%e3%`) get the `%` of their broken tail escaped as `%25`,
- *   exactly like the canonical URLs (lib/slug.ts). TanStack Start answers 400 to paths it
- *   cannot decode, and could not hydrate them either.
- * - a missing trailing slash is added (TanStack's own redirect for it is a 307).
- */
-function canonicalPath(pathname: string): string {
-  let path = pathname
-  if (path === '/archives' || path.startsWith('/archives/')) {
-    path = path.slice('/archives'.length) || '/'
-  }
-  if (tryDecodeURI(path) === undefined) path = path.split('/').map(slugToPathSegment).join('/')
-  if (!path.endsWith('/') && !isFileLike(path)) path += '/'
-  return path
 }
 
 /**
@@ -78,9 +42,7 @@ async function proxyUpload(request: Request, url: URL, env: Env): Promise<Respon
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     return new Response('Method Not Allowed', { status: 405, headers: { Allow: 'GET, HEAD' } })
   }
-  // R2 ignores the Jetpack resize parameters (`?w=…&h=…&crop=1`) used by the theme;
-  // dropping them lets every size share one cached object.
-  const upstream = new URL(url.pathname.slice(UPLOADS_PREFIX.length), env.UPLOADS_ORIGIN)
+  const upstream = uploadUrl(url.pathname, env.UPLOADS_ORIGIN)
   const headers = new Headers()
   for (const name of ['if-none-match', 'if-modified-since', 'range']) {
     const value = request.headers.get(name)
@@ -142,7 +104,7 @@ export default {
     const url = new URL(request.url)
     const isRead = request.method === 'GET' || request.method === 'HEAD'
 
-    if (url.pathname.startsWith(UPLOADS_PREFIX)) return proxyUpload(request, url, env)
+    if (url.pathname.startsWith('/wp-content/uploads/')) return proxyUpload(request, url, env)
 
     if (isRead && !url.pathname.startsWith(SERVER_FN_PREFIX)) {
       // WordPress search URLs (`/?s=…`); also the no-JavaScript fallback of <SearchForm>.

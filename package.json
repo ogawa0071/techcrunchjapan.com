@@ -9,10 +9,11 @@
     "deploy": "vite build && wrangler deploy",
     "cf-typegen": "wrangler types",
     "typecheck": "wrangler types && tsc",
+    "test": "vitest run",
     "lint": "oxlint",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
-    "check": "bun run typecheck && bun run lint && bun run fmt:check",
+    "check": "bun run typecheck && bun run lint && bun run fmt:check && bun run test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
@@ -42,6 +43,7 @@
     "oxlint": "^1.91.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
+    "vitest": "^5.1.0",
     "wrangler": "^4.157.0"
   }
 }
