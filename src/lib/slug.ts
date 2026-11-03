@@ -19,9 +19,18 @@ export function tryDecodeURIComponent(value: string): string | undefined {
   }
 }
 
-/** Splits a slug into its longest decodable prefix and the undecodable rest. */
+/**
+ * Splits a slug into its longest decodable prefix and the undecodable rest. The rest
+ * always starts at a `%`, so only those positions are tried (a linear number of
+ * attempts per escape instead of one per character).
+ */
 function splitDecodable(slug: string): [head: string, tail: string] {
-  for (let end = slug.length; end > 0; end--) {
+  if (tryDecodeURIComponent(slug) !== undefined) return [slug, '']
+  for (
+    let end = slug.lastIndexOf('%');
+    end > 0;
+    end = slug.lastIndexOf('%', end - 1)
+  ) {
     if (tryDecodeURIComponent(slug.slice(0, end)) !== undefined) {
       return [slug.slice(0, end), slug.slice(end)]
     }

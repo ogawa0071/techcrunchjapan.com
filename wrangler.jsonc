@@ -45,8 +45,11 @@
   // Run cache misses next to the database (Neon in AWS Tokyo).
   // "placement": { "region": "aws:ap-northeast-1" },
 
-  // Production domain, once ready to switch over from Vercel (remove Vercel's DNS record first).
-  // Adding routes turns workers.dev off unless "workers_dev" is set explicitly.
-  // "routes": [{ "pattern": "techcrunchjapan.com", "custom_domain": true }],
+  // Production domain, once ready to switch over from Vercel (remove Vercel's DNS records
+  // first). www is redirected to the apex by the Worker. Set "workers_dev" to false then.
+  // "routes": [
+  //   { "pattern": "techcrunchjapan.com", "custom_domain": true },
+  //   { "pattern": "www.techcrunchjapan.com", "custom_domain": true },
+  // ],
   "workers_dev": true,
 }

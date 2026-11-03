@@ -1,5 +1,8 @@
 import { Parser } from 'htmlparser2'
 
+import { EXCERPT_LENGTH } from '../../src/lib/site'
+import { truncate } from '../../src/lib/text'
+
 /** Elements whose text is never visible prose (embed scripts, CSS, ...). */
 const SKIPPED = new Set([
   'head',
@@ -79,13 +82,7 @@ export function htmlToText(html: string): string {
   return text.replace(/\s+/g, ' ').trim()
 }
 
-/** Default number of characters stored in `posts.excerpt`. */
-export const EXCERPT_LENGTH = 300
-
-/** Plain-text lead of an article, cut at `maxLength` characters (code points). */
+/** Plain-text lead of an article as stored in `posts.excerpt` (cut by characters). */
 export function toExcerpt(html: string, maxLength = EXCERPT_LENGTH): string {
-  const chars = Array.from(htmlToText(html))
-  return chars.length <= maxLength
-    ? chars.join('')
-    : chars.slice(0, maxLength).join('')
+  return truncate(htmlToText(html), maxLength)
 }

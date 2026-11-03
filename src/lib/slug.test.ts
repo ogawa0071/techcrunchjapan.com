@@ -20,6 +20,15 @@ describe('slugToPathSegment', () => {
     expect(slugToPathSegment('abc%e3%81')).toBe('abc%25e3%2581')
   })
 
+  it('handles long slugs with a broken escape in the middle quickly', () => {
+    const slug = `${'a'.repeat(7000)}%e3${'a'.repeat(7000)}`
+    const started = performance.now()
+    expect(slugToPathSegment(slug)).toBe(
+      `${'a'.repeat(7000)}%25e3${'a'.repeat(7000)}`,
+    )
+    expect(performance.now() - started).toBeLessThan(50)
+  })
+
   it('always produces a decodable segment', () => {
     for (const slug of ['abc%e3%', '%e3%81', '%', '%%', 'a%zz']) {
       expect(tryDecodeURIComponent(slugToPathSegment(slug))).toBeDefined()

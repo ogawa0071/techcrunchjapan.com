@@ -1,3 +1,6 @@
+import { defaultParseSearch } from '@tanstack/react-router'
+
+import { validatePageSearch } from './search-params'
 import { slugToPathSegment } from './slug'
 
 const UPLOADS_PREFIX = '/wp-content/uploads/'
@@ -55,4 +58,36 @@ export function uploadUrl(pathname: string, origin: string): URL {
   const url = new URL(origin)
   url.pathname = `/${pathname.slice(UPLOADS_PREFIX.length).replace(/^\/+/, '')}`
   return url
+}
+
+/**
+ * The query string that determines a response: `?payload=…` for server functions and
+ * `?page=N` (N > 1) for listings, parsed exactly as the router does, so that duplicated
+ * or oddly encoded parameters map to the page that is actually rendered. Everything
+ * else (utm_*, fbclid, ...) is irrelevant to the output.
+ */
+export function canonicalSearch(url: URL): string {
+  if (url.pathname.startsWith('/_serverFn/')) {
+    const payload = url.searchParams.get('payload')
+    return payload === null ? '' : `?${new URLSearchParams({ payload })}`
+  }
+  const { page } = validatePageSearch(defaultParseSearch(url.search))
+  return page ? `?page=${page}` : ''
+}
+
+/**
+ * The canonical URL for requests to `www.` or over plain HTTP on the production host
+ * (`origin`), or `undefined` when the request is already there (or is another host such
+ * as workers.dev or localhost).
+ */
+export function canonicalOriginUrl(
+  url: URL,
+  origin: string,
+): string | undefined {
+  const site = new URL(origin)
+  const isWww = url.hostname === `www.${site.hostname}`
+  const isPlainHttp = url.hostname === site.hostname && url.protocol === 'http:'
+  return isWww || isPlainHttp
+    ? `${site.origin}${url.pathname}${url.search}`
+    : undefined
 }

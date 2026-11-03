@@ -7,7 +7,8 @@ import {
 import { Article } from '../components/Article'
 import { authorPath, postPath } from '../lib/paths'
 import { jsonLd, seo } from '../lib/seo'
-import { absoluteUrl, EXCERPT_DISPLAY_LENGTH, SITE_NAME } from '../lib/site'
+import { absoluteUrl, EXCERPT_LENGTH, SITE_NAME } from '../lib/site'
+import { truncate } from '../lib/text'
 import { getPost } from '../server/functions'
 
 const DATE_PARAMS = { year: /^\d{4}$/, month: /^\d{2}$/, day: /^\d{2}$/ }
@@ -23,13 +24,10 @@ export const Route = createFileRoute('/$year/$month/$day/$slug')({
         : false,
   },
   staticData: { bodyClass: 'single-post' },
-  loader: async ({ params, location }) => {
+  loader: async ({ params }) => {
     const result = await getPost({ data: params })
     if ('redirectTo' in result) {
-      throw redirect<AnyRouter>({
-        href: result.redirectTo + location.searchStr,
-        statusCode: 301,
-      })
+      throw redirect<AnyRouter>({ href: result.redirectTo, statusCode: 301 })
     }
     return result.post
   },
@@ -38,7 +36,7 @@ export const Route = createFileRoute('/$year/$month/$day/$slug')({
     const path = postPath(post)
     const { meta, links } = seo({
       title: post.title,
-      description: post.excerpt.slice(0, EXCERPT_DISPLAY_LENGTH),
+      description: truncate(post.excerpt, EXCERPT_LENGTH),
       path,
       image: post.featuredMediaUrl,
       type: 'article',

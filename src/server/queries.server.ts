@@ -18,14 +18,6 @@ export const PAGE_SIZE = 20
 /** Width of the slug column in the old MySQL schema (Prisma's VARCHAR(191)); longer slugs were cut. */
 const LEGACY_SLUG_LENGTH = 191
 
-/** Categories of the current `posts` row as a JSON array (one round trip, no N+1). */
-const postCategoriesJson = sql<CategoryRef[]>`coalesce((
-  select json_agg(json_build_object('id', ${categories.id}, 'slug', ${categories.slug}, 'name', ${categories.name}) order by ${categories.id})
-  from ${postCategories}
-  inner join ${categories} on ${categories.id} = ${postCategories.categoryId}
-  where ${postCategories.postId} = ${posts.id}
-), '[]'::json)`
-
 const summaryColumns = {
   id: posts.id,
   slug: posts.slug,
@@ -34,7 +26,41 @@ const summaryColumns = {
   featuredMediaUrl: posts.featuredMediaUrl,
   createdAt: posts.createdAt,
   author: { slug: authors.slug, name: authors.name },
-  categories: postCategoriesJson,
+}
+
+/**
+ * Adds the categories of each post with one more query (no N+1). Plain joins rather than
+ * json_agg(): Hyperdrive caches only queries free of STABLE/VOLATILE functions.
+ */
+async function withCategories<T extends { id: number }>(
+  db: Database,
+  rows: T[],
+): Promise<(T & { categories: CategoryRef[] })[]> {
+  if (rows.length === 0) return []
+  const links = await db
+    .select({
+      postId: postCategories.postId,
+      id: categories.id,
+      slug: categories.slug,
+      name: categories.name,
+    })
+    .from(postCategories)
+    .innerJoin(categories, eq(categories.id, postCategories.categoryId))
+    .where(
+      inArray(
+        postCategories.postId,
+        rows.map((row) => row.id),
+      ),
+    )
+    .orderBy(postCategories.postId, categories.id)
+
+  const byPost = new Map<number, CategoryRef[]>()
+  for (const { postId, ...category } of links) {
+    const list = byPost.get(postId)
+    if (list) list.push(category)
+    else byPost.set(postId, [category])
+  }
+  return rows.map((row) => ({ ...row, categories: byPost.get(row.id) ?? [] }))
 }
 
 const newestFirst = [desc(posts.createdAt), desc(posts.id)]
@@ -98,7 +124,7 @@ async function listPosts(
     .orderBy(...newestFirst)
 
   return {
-    posts: rows.slice(0, PAGE_SIZE),
+    posts: await withCategories(db, rows.slice(0, PAGE_SIZE)),
     page,
     hasNextPage: rows.length > PAGE_SIZE,
   }
@@ -131,7 +157,9 @@ export async function getPostBySlug(
     .where(inArray(posts.slug, candidates))
     .orderBy(desc(sql`length(${posts.slug})`))
     .limit(1)
-  return post
+  if (!post) return undefined
+  const [withCats] = await withCategories(db, [post])
+  return withCats
 }
 
 export interface PostLocation {

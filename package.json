@@ -16,7 +16,7 @@
     "fmt:check": "oxfmt --check",
     "check": "bun run typecheck && bun run lint && bun run fmt:check && bun run test",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "bun scripts/migrate.ts",
     "db:studio": "drizzle-kit studio",
     "db:copy-from-tidb": "bun scripts/migrate-from-tidb.ts",
     "sitemap": "bun scripts/generate-sitemaps.ts",
@@ -47,6 +47,9 @@
     "vite": "^8.3.5",
     "vitest": "^5.1.0",
     "wrangler": "^4.157.0"
+  },
+  "engines": {
+    "node": ">=22.12"
   },
   "packageManager": "bun@1.4.4"
 }

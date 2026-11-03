@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { canonicalPath, isFileLike, uploadUrl } from './urls'
+import {
+  canonicalOriginUrl,
+  canonicalPath,
+  canonicalSearch,
+  isFileLike,
+  uploadUrl,
+} from './urls'
 
 describe('canonicalPath', () => {
   it.each([
@@ -66,5 +72,48 @@ describe('uploadUrl', () => {
     '/wp-content/uploads//\\evil.com/x.png',
   ])('never leaves the bucket host (%s)', (raw) => {
     expect(uploadUrl(pathOf(raw), origin).host).toBe('r2.techcrunchjapan.com')
+  })
+})
+
+const search = (query: string, path = '/') =>
+  canonicalSearch(new URL(`https://techcrunchjapan.com${path}${query}`))
+
+describe('canonicalSearch', () => {
+  it('keeps only the parameters that change the output', () => {
+    expect(search('')).toBe('')
+    expect(search('?page=2&utm_source=x&fbclid=y')).toBe('?page=2')
+    expect(search('?page=1')).toBe('')
+    expect(search('?page=abc')).toBe('')
+    expect(search('?payload=%7B%7D&x=1', '/_serverFn/abc')).toBe(
+      '?payload=%7B%7D',
+    )
+  })
+
+  it('follows the router when parameters are duplicated or oddly written', () => {
+    // The router renders page 1 for a repeated `page`, so it must share page 1's entry.
+    expect(search('?page=2&page=3')).toBe('')
+    expect(search('?page=02')).toBe('?page=2')
+  })
+})
+
+describe('canonicalOriginUrl', () => {
+  const origin = 'https://techcrunchjapan.com'
+  const redirect = (url: string) => canonicalOriginUrl(new URL(url), origin)
+
+  it('sends www and plain HTTP to the HTTPS apex, keeping path and query', () => {
+    expect(
+      redirect('https://www.techcrunchjapan.com/2022/03/31/final/?a=1'),
+    ).toBe('https://techcrunchjapan.com/2022/03/31/final/?a=1')
+    expect(redirect('http://techcrunchjapan.com/')).toBe(
+      'https://techcrunchjapan.com/',
+    )
+  })
+
+  it('leaves the canonical origin and other hosts alone', () => {
+    expect(redirect('https://techcrunchjapan.com/')).toBeUndefined()
+    expect(redirect('http://localhost:5173/')).toBeUndefined()
+    expect(
+      redirect('https://techcrunchjapan.example.workers.dev/'),
+    ).toBeUndefined()
   })
 })

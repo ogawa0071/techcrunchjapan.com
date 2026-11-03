@@ -5,8 +5,8 @@ export const SITE_DESCRIPTION =
 export const DEFAULT_OG_IMAGE =
   '/wp-content/themes/techcrunch-jp-2015/assets/images/logo-large.png'
 
-/** Number of characters of `posts.excerpt` shown in listings and meta descriptions. */
-export const EXCERPT_DISPLAY_LENGTH = 270
+/** Length (in characters) of `posts.excerpt`, shown in listings and meta descriptions. */
+export const EXCERPT_LENGTH = 270
 
 /** Resolves a site-relative path (or keeps an absolute URL) against the canonical origin. */
 export function absoluteUrl(pathOrUrl: string): string {

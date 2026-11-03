@@ -19,6 +19,8 @@
   "options": {
     // Type-aware typescript/* rules (requires the oxlint-tsgolint package).
     "typeAware": true,
+    // The codebase has no warnings; keep it that way in CI.
+    "denyWarnings": true,
     "reportUnusedDisableDirectives": "warn"
   },
   "settings": {

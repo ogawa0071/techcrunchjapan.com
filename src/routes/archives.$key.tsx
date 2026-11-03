@@ -12,11 +12,8 @@ import { getLegacyPostPath } from '../server/functions'
  * the server entry before reaching the router.
  */
 export const Route = createFileRoute('/archives/$key')({
-  loader: async ({ params, location }) => {
+  loader: async ({ params }) => {
     const path = await getLegacyPostPath({ data: { key: params.key } })
-    throw redirect<AnyRouter>({
-      href: path + location.searchStr,
-      statusCode: 301,
-    })
+    throw redirect<AnyRouter>({ href: path, statusCode: 301 })
   },
 })

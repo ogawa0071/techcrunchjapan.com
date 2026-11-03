@@ -2,7 +2,8 @@ import { Link } from '@tanstack/react-router'
 
 import { formatDate } from '../lib/date'
 import { authorLink, categoryLink, postLink, thumbnailUrl } from '../lib/paths'
-import { EXCERPT_DISPLAY_LENGTH } from '../lib/site'
+import { EXCERPT_LENGTH } from '../lib/site'
+import { truncate } from '../lib/text'
 import type { PostSummary } from '../server/types'
 
 /** The chronological article list ("river") of the original theme. */
@@ -49,7 +50,7 @@ export function PostRiver({ posts }: { posts: PostSummary[] }) {
                   </Link>
                 </div>
                 <p className="excerpt">
-                  {post.excerpt.slice(0, EXCERPT_DISPLAY_LENGTH)}
+                  {truncate(post.excerpt, EXCERPT_LENGTH)}
                   &hellip;
                   <Link {...link} className="read-more">
                     続きを読む

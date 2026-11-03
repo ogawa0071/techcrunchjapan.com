@@ -5,13 +5,21 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
+      # Bun version from package.json "packageManager"
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      # typecheck (wrangler types + tsc), oxlint, oxfmt --check, vitest
+      # typecheck (wrangler types + tsc -b), oxlint, oxfmt --check, vitest
       - run: bun run check
       - run: bun run build

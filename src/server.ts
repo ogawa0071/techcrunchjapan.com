@@ -1,7 +1,14 @@
 import handler from '@tanstack/react-start/server-entry'
 
 import { searchPath } from './lib/paths'
-import { canonicalPath, isFileLike, uploadUrl } from './lib/urls'
+import { SITE_ORIGIN } from './lib/site'
+import {
+  canonicalOriginUrl,
+  canonicalPath,
+  canonicalSearch,
+  isFileLike,
+  uploadUrl,
+} from './lib/urls'
 
 declare global {
   // Route code is isomorphic, so tsconfig keeps the DOM lib, whose CacheStorage type
@@ -15,6 +22,12 @@ const SERVER_FN_PREFIX = '/_serverFn/'
 
 const DAY = 24 * 60 * 60
 const YEAR = 365 * DAY
+
+/** Real paths are short (slugs ≤ 200 bytes); longer ones are not worth any work. */
+const MAX_PATH_LENGTH = 2048
+
+/** Same policy as the previous host (Vercel): two years. */
+const HSTS = `max-age=${2 * YEAR}`
 
 /**
  * How long the edge keeps a response, by status. The archive is frozen, so pages are kept
@@ -50,6 +63,29 @@ function redirectTo(location: string): Response {
 }
 
 /**
+ * `www.` and plain-HTTP requests go to the canonical HTTPS origin. Never cached: Workers
+ * Cache keys ignore the host and scheme, so a cached cross-origin redirect would loop.
+ */
+function canonicalOriginRedirect(url: URL): Response | undefined {
+  const location = canonicalOriginUrl(url, SITE_ORIGIN)
+  if (!location) return undefined
+  return new Response(null, {
+    status: 301,
+    headers: { Location: location, 'Cache-Control': 'no-store' },
+  })
+}
+
+/** Upstream headers passed through for media; everything else (e.g. Set-Cookie) is dropped. */
+const UPLOAD_HEADERS = [
+  'accept-ranges',
+  'content-length',
+  'content-range',
+  'content-type',
+  'etag',
+  'last-modified',
+]
+
+/**
  * Media of the original WordPress site, stored in R2 (public bucket). Proxied rather
  * than redirected so that article HTML can keep its `/wp-content/uploads/…` URLs.
  */
@@ -65,26 +101,46 @@ async function proxyUpload(
     })
   }
   const upstream = uploadUrl(url.pathname, env.UPLOADS_ORIGIN)
-  const headers = new Headers()
+  const forwarded = new Headers()
   for (const name of ['if-none-match', 'if-modified-since', 'range']) {
     const value = request.headers.get(name)
-    if (value) headers.set(name, value)
+    if (value) forwarded.set(name, value)
   }
   const response = await fetch(upstream, {
     method: request.method,
-    headers,
+    headers: forwarded,
     // Uploads never change; misses and errors must not be pinned for a year.
     cf: {
       cacheEverything: true,
       cacheTtlByStatus: { '200-299': YEAR, '404': DAY, '500-599': 0 },
     },
   })
-  const proxied = new Response(response.body, response)
-  proxied.headers.set('X-Content-Type-Options', 'nosniff')
-  if (response.ok) {
-    proxied.headers.set('Cache-Control', `public, max-age=${YEAR}, immutable`)
+
+  const headers = new Headers()
+  for (const name of UPLOAD_HEADERS) {
+    const value = response.headers.get(name)
+    if (value) headers.set(name, value)
   }
-  return proxied
+  headers.set(
+    'Cache-Control',
+    response.status < 400
+      ? `public, max-age=${YEAR}, immutable`
+      : response.status === 404
+        ? `public, max-age=${DAY}`
+        : 'no-store',
+  )
+  // Uploaded files are data, never active content on this origin (e.g. an SVG or HTML
+  // file with scripts in the bucket).
+  headers.set('X-Content-Type-Options', 'nosniff')
+  headers.set(
+    'Content-Security-Policy',
+    "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox",
+  )
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
 }
 
 /**
@@ -110,23 +166,10 @@ function withCacheHeaders(
 }
 
 /**
- * Cache key: the path plus only the query parameters that change the response (`page` for
- * listings, `payload` for server functions), so tracking parameters (utm_*, fbclid, ...)
- * cannot multiply entries or force renders. The Worker version is included because HTML
- * cached by a previous deployment references /assets/* files that no longer exist.
- */
-function cacheKey(url: URL, version: string): Request {
-  const key = new URL(url.pathname, url.origin)
-  const param = url.pathname.startsWith(SERVER_FN_PREFIX) ? 'payload' : 'page'
-  const value = url.searchParams.get(param)
-  if (value !== null) key.searchParams.set(param, value)
-  key.searchParams.set('__version', version)
-  return new Request(key, { method: 'GET' })
-}
-
-/**
  * Per-data-center cache (Cache API) for SSR documents and GET server-function responses
- * (the data requested on client-side navigation).
+ * (the data requested on client-side navigation). `request` is already normalized, so
+ * its URL is the key; the Worker version is added because HTML cached by a previous
+ * deployment references /assets/* files that no longer exist.
  */
 async function withCacheApi(
   request: Request,
@@ -134,7 +177,9 @@ async function withCacheApi(
   ctx: ExecutionContext,
   render: () => Response | Promise<Response>,
 ): Promise<Response> {
-  const key = cacheKey(new URL(request.url), env.CF_VERSION_METADATA.id)
+  const keyUrl = new URL(request.url)
+  keyUrl.searchParams.set('__version', env.CF_VERSION_METADATA.id)
+  const key = new Request(keyUrl, { method: 'GET' })
   const cache = caches.default
 
   const hit = await cache.match(key)
@@ -150,12 +195,40 @@ async function withCacheApi(
   return withCacheHeaders(stored, 'MISS')
 }
 
+/**
+ * Pages are rendered from a normalized URL (path + the parameters that matter), so a
+ * response depends only on its cache key. A redirect still gets the visitor's original
+ * query string (e.g. utm_*), added per request and never stored.
+ */
+function withOriginalQuery(response: Response, url: URL): Response {
+  const location = response.headers.get('Location')
+  if (
+    !url.search ||
+    response.status < 300 ||
+    response.status >= 400 ||
+    !location?.startsWith('/') ||
+    location.includes('?')
+  ) {
+    return response
+  }
+  const result = new Response(response.body, response)
+  result.headers.set('Location', location + url.search)
+  return result
+}
+
 async function respond(
   request: Request,
   env: Env,
   ctx: ExecutionContext,
 ): Promise<Response> {
   const url = new URL(request.url)
+
+  const originRedirect = canonicalOriginRedirect(url)
+  if (originRedirect) return originRedirect
+
+  if (url.pathname.length > MAX_PATH_LENGTH) {
+    return new Response('URI Too Long', { status: 414 })
+  }
 
   if (url.pathname.startsWith('/wp-content/uploads/')) {
     return proxyUpload(request, url, env)
@@ -191,21 +264,32 @@ async function respond(
     }
   }
 
-  if (env.EDGE_CACHE === 'cache-api') {
-    return withCacheApi(request, env, ctx, () => handler.fetch(request))
-  }
-  return withCacheHeaders(await handler.fetch(request))
+  const normalized = new Request(
+    new URL(url.pathname + canonicalSearch(url), url.origin),
+    request,
+  )
+  const response =
+    env.EDGE_CACHE === 'cache-api'
+      ? await withCacheApi(normalized, env, ctx, () =>
+          handler.fetch(normalized),
+        )
+      : withCacheHeaders(await handler.fetch(normalized))
+  return withOriginalQuery(response, url)
 }
 
 export default {
   async fetch(request, env, ctx) {
     // HEAD (monitors, link checkers) is answered like GET, from the cache when possible.
-    if (request.method !== 'HEAD') return respond(request, env, ctx)
+    const isHead = request.method === 'HEAD'
     const response = await respond(
-      new Request(request, { method: 'GET' }),
+      isHead ? new Request(request, { method: 'GET' }) : request,
       env,
       ctx,
     )
-    return new Response(null, response)
+    const result = new Response(isHead ? null : response.body, response)
+    if (new URL(request.url).protocol === 'https:') {
+      result.headers.set('Strict-Transport-Security', HSTS)
+    }
+    return result
   },
 } satisfies ExportedHandler<Env>
