@@ -56,21 +56,21 @@ bun run dev
 
 ### コマンド
 
-| コマンド                       | 内容                                                          |
-| ------------------------------ | ------------------------------------------------------------- |
-| `bun run dev`                  | 開発サーバー（Worker は workerd 上で動作）                    |
-| `bun run build`                | 本番ビルド（`dist/`）                                         |
-| `bun run preview`              | 本番ビルドをローカルの workerd で実行                         |
-| `bun run deploy`               | ビルドして Cloudflare にデプロイ                              |
-| `bun run check`                | 型チェック・lint・フォーマット・テストをまとめて実行          |
-| `bun run typecheck`            | `wrangler types`（`worker-configuration.d.ts` の生成）+ `tsc` |
-| `bun run lint` / `bun run fmt` | oxlint / oxfmt                                                |
-| `bun run test`                 | Vitest                                                        |
-| `bun run db:generate`          | `src/db/schema.ts` の変更からマイグレーション SQL を生成      |
-| `bun run db:migrate`           | マイグレーションを `DATABASE_URL` の DB に適用                |
-| `bun run db:studio`            | Drizzle Studio                                                |
-| `bun run db:copy-from-tidb`    | TiDB から Neon へデータをコピー（後述）                       |
-| `bun run sitemap`              | `public/` のサイトマップを DB から再生成                      |
+| コマンド                       | 内容                                                             |
+| ------------------------------ | ---------------------------------------------------------------- |
+| `bun run dev`                  | 開発サーバー（Worker は workerd 上で動作）                       |
+| `bun run build`                | 本番ビルド（`dist/`）                                            |
+| `bun run preview`              | 本番ビルドをローカルの workerd で実行                            |
+| `bun run deploy`               | ビルドして Cloudflare にデプロイ                                 |
+| `bun run check`                | 型チェック・lint・フォーマット・テストをまとめて実行             |
+| `bun run typecheck`            | `wrangler types`（`worker-configuration.d.ts` の生成）+ `tsc -b` |
+| `bun run lint` / `bun run fmt` | oxlint / oxfmt                                                   |
+| `bun run test`                 | Vitest                                                           |
+| `bun run db:generate`          | `src/db/schema.ts` の変更からマイグレーション SQL を生成         |
+| `bun run db:migrate`           | マイグレーションを `DATABASE_URL` の DB に適用                   |
+| `bun run db:studio`            | Drizzle Studio                                                   |
+| `bun run db:copy-from-tidb`    | TiDB から Neon へデータをコピー（後述）                          |
+| `bun run sitemap`              | `public/` のサイトマップを DB から再生成                         |
 
 `bun run` で実行するスクリプトには `.env` が自動で読み込まれます。
 
@@ -99,13 +99,13 @@ bun run dev
 
    Hyperdrive は Workers の無料プランでも使えますが、1 日あたり 10 万クエリ（キャッシュヒットを含む）の上限があります。ページはエッジでキャッシュするため、通常はこの上限より十分少なくなります。
 
-5. **デプロイ**して `*.workers.dev` で動作を確認します（エッジキャッシュはカスタムドメインでのみ有効です）。
+5. **デプロイ**して `*.workers.dev` で動作を確認します。
 
    ```bash
    bun run deploy
    ```
 
-6. **ドメインの切り替え**: `wrangler.jsonc` の `routes`（カスタムドメイン）のコメントを外して再度デプロイし、Vercel から切り替えます。
+6. **ドメインの切り替え**: Cloudflare DNS にある Vercel 向けのレコード（`techcrunchjapan.com` の CNAME など）を削除してから、`wrangler.jsonc` の `routes`（カスタムドメイン）のコメントを外して再度デプロイします。DNS レコードと証明書は Cloudflare が作成します。`workers_dev` を `false` にすると `*.workers.dev` での公開を止められます。最後に Vercel のプロジェクトを削除します。
 
 7. **サイトマップの再生成**（任意）: Neon のデータから `lastmod` 付きのサイトマップを作り直してコミットします。
 
@@ -113,13 +113,18 @@ bun run dev
    DATABASE_URL="postgresql://…" bun run sitemap
    ```
 
-Git 連携の [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/) を使う場合は、ビルドコマンドを `bun run build`、デプロイコマンドを `bunx wrangler deploy` にします。
+Git 連携の [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/) を使う場合は、ビルドコマンドを `bun run build`、デプロイコマンドを `bunx wrangler deploy` にします（Bun のバージョンは `package.json` の `packageManager` で固定しています）。main 以外のブランチのビルドは既定で `npx wrangler preview` を実行しますが、Preview にはバインディングが引き継がれないため、そのコマンドを `bunx wrangler versions upload` に変えるか、main 以外のビルドを無効にしてください。
+
+### プラン
+
+SSR を行うため **Workers Paid プラン**（月 5 ドル〜）を推奨します。無料プランは 1 リクエストあたりの CPU 時間が 10ms で、キャッシュされていない長い記事のレンダリングが上限を超えることがあります（Error 1102）。データベースへのアクセス待ちは CPU 時間に含まれません。
 
 ## キャッシュ
 
 - **静的ファイル**（`public/`、ビルド済み JS / CSS）は Worker を通らずに配信されます。キャッシュ期間は `public/_headers` で指定しています。
-- **ページと、クライアント遷移時のデータ（GET `/_serverFn/…`）** は Worker の Cache API でデータセンターごとに 30 日間キャッシュします（旧 ISR の `revalidate` と同じ）。404 は 1 日です。キャッシュキーにデプロイのバージョンを含めているため、デプロイすると新しいキャッシュに切り替わります。レスポンスヘッダー `X-Edge-Cache` で HIT / MISS を確認できます。
-- Cloudflare の [Workers Cache](https://developers.cloudflare.com/workers/cache/)（`wrangler.jsonc` の `"cache": { "enabled": true }`）を使うと、ヒット時は Worker を実行せずに全拠点で共有キャッシュから返せます。その場合は静的ファイルへのリクエストも課金対象になるので、トラフィックと料金を見て判断してください。
+- **ページと、クライアント遷移時のデータ（GET `/_serverFn/…`）** は、既定では Worker が Cache API でデータセンターごとに 30 日間キャッシュします（旧 ISR の `revalidate` と同じ）。404 は 1 日です。キャッシュキーにデプロイのバージョンを含めているため、デプロイすると新しいキャッシュに切り替わります。レスポンスヘッダー `X-Edge-Cache` で HIT / MISS を確認できます。ブラウザには毎回再検証させます（`Cache-Control: max-age=0`）。
+- Workers Paid プランなら Cloudflare の [Workers Cache](https://developers.cloudflare.com/workers/cache/) への切り替えをおすすめします。ヒット時は Worker を実行せずに階層型の共有キャッシュから返し、期限切れのページは裏で再生成されます（ISR と同じ動き）。`wrangler.jsonc` の `"cache": { "enabled": true }` のコメントを外し、`vars.EDGE_CACHE` を `"none"` にします。Worker はそのためのヘッダー（`Cloudflare-CDN-Cache-Control`）を常に付けています。Workers Cache を有効にすると静的ファイルへのリクエストも Worker のリクエストとして課金されます。また、キャッシュミス時に DB の近くで実行するよう `placement` の設定もコメントで用意しています。
+- **画像**（`/wp-content/uploads/*`）は R2 から取得し、Cloudflare のキャッシュに 1 年間（404 は 1 日）保存します。
 
 ## 旧構成（Vercel + Next.js + TiDB + Prisma）からの変更点
 

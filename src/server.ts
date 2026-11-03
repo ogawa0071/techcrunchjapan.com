@@ -14,6 +14,7 @@ declare global {
 const SERVER_FN_PREFIX = '/_serverFn/'
 
 const DAY = 24 * 60 * 60
+const YEAR = 365 * DAY
 
 /**
  * How long the edge keeps a response, by status. The archive is frozen, so pages are kept
@@ -24,6 +25,19 @@ const EDGE_TTL: Partial<Record<number, number>> = {
   200: 30 * DAY,
   301: 30 * DAY,
   404: DAY,
+}
+
+/** Edge TTL of a response, or `undefined` when it must not be cached. */
+function edgeTtl(response: Response): number | undefined {
+  const ttl = EDGE_TTL[response.status]
+  const cacheControl = response.headers.get('Cache-Control') ?? ''
+  if (
+    response.headers.has('Set-Cookie') ||
+    /no-store|private/i.test(cacheControl)
+  ) {
+    return undefined
+  }
+  return ttl
 }
 
 /**
@@ -58,20 +72,48 @@ async function proxyUpload(
   const response = await fetch(upstream, {
     method: request.method,
     headers,
-    cf: { cacheEverything: true, cacheTtl: 365 * DAY },
+    // Uploads never change; misses and errors must not be pinned for a year.
+    cf: {
+      cacheEverything: true,
+      cacheTtlByStatus: { '200-299': YEAR, '404': DAY, '500-599': 0 },
+    },
   })
   const proxied = new Response(response.body, response)
-  if (response.ok)
-    proxied.headers.set('Cache-Control', 'public, max-age=31536000, immutable')
+  proxied.headers.set('X-Content-Type-Options', 'nosniff')
+  if (response.ok) {
+    proxied.headers.set('Cache-Control', `public, max-age=${YEAR}, immutable`)
+  }
   return proxied
 }
 
 /**
- * Per-data-center cache for SSR documents and GET server-function responses (the data
- * requested on client-side navigation). Keys include the Worker version: HTML cached by a
- * previous deployment would reference /assets/* files that no longer exist.
+ * Cache headers of cacheable responses: browsers always revalidate (a new deployment shows
+ * up immediately), while the edge keeps the response. `Cloudflare-CDN-Cache-Control` is
+ * what Workers Cache uses (and strips) when it is enabled in wrangler.jsonc: stale entries
+ * are then re-rendered in the background, like ISR.
  */
-async function withEdgeCache(
+function withCacheHeaders(
+  response: Response,
+  cacheStatus?: 'HIT' | 'MISS',
+): Response {
+  const ttl = edgeTtl(response)
+  if (ttl === undefined) return response
+  const result = new Response(response.body, response)
+  result.headers.set('Cache-Control', 'public, max-age=0, must-revalidate')
+  result.headers.set(
+    'Cloudflare-CDN-Cache-Control',
+    `public, max-age=${ttl}, stale-while-revalidate=${ttl}`,
+  )
+  if (cacheStatus) result.headers.set('X-Edge-Cache', cacheStatus)
+  return result
+}
+
+/**
+ * Per-data-center cache (Cache API) for SSR documents and GET server-function responses
+ * (the data requested on client-side navigation). Keys include the Worker version: HTML
+ * cached by a previous deployment would reference /assets/* files that no longer exist.
+ */
+async function withCacheApi(
   request: Request,
   env: Env,
   ctx: ExecutionContext,
@@ -83,35 +125,16 @@ async function withEdgeCache(
   const cache = caches.default
 
   const hit = await cache.match(key)
-  if (hit) return forClient(hit, 'HIT')
+  if (hit) return withCacheHeaders(hit, 'HIT')
 
   const response = await render()
-  const ttl = EDGE_TTL[response.status]
-  const cacheControl = response.headers.get('Cache-Control') ?? ''
-  if (
-    !ttl ||
-    response.headers.has('Set-Cookie') ||
-    /no-store|private/i.test(cacheControl)
-  ) {
-    return response
-  }
+  const ttl = edgeTtl(response)
+  if (ttl === undefined) return response
 
   const stored = new Response(response.body, response)
   stored.headers.set('Cache-Control', `public, max-age=${ttl}`)
   ctx.waitUntil(cache.put(key, stored.clone()))
-  return forClient(stored, 'MISS')
-}
-
-/** Browsers revalidate every time (fresh deployments show up immediately); shared caches may keep it. */
-function forClient(response: Response, cacheStatus: 'HIT' | 'MISS'): Response {
-  const ttl = EDGE_TTL[response.status] ?? 0
-  const result = new Response(response.body, response)
-  result.headers.set(
-    'Cache-Control',
-    `public, max-age=0, s-maxage=${ttl}, must-revalidate`,
-  )
-  result.headers.set('X-Edge-Cache', cacheStatus)
-  return result
+  return withCacheHeaders(stored, 'MISS')
 }
 
 export default {
@@ -139,6 +162,9 @@ export default {
     }
 
     if (request.method !== 'GET') return handler.fetch(request)
-    return withEdgeCache(request, env, ctx, () => handler.fetch(request))
+    if (env.EDGE_CACHE === 'cache-api') {
+      return withCacheApi(request, env, ctx, () => handler.fetch(request))
+    }
+    return withCacheHeaders(await handler.fetch(request))
   },
 } satisfies ExportedHandler<Env>

@@ -7,8 +7,8 @@
     "build": "vite build",
     "preview": "vite build && vite preview",
     "deploy": "vite build && wrangler deploy",
-    "cf-typegen": "wrangler types",
-    "typecheck": "wrangler types && tsc",
+    "cf-typegen": "wrangler types --strict-vars=false",
+    "typecheck": "wrangler types --strict-vars=false && tsc -b",
     "test": "vitest run",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
@@ -20,7 +20,7 @@
     "db:studio": "drizzle-kit studio",
     "db:copy-from-tidb": "bun scripts/migrate-from-tidb.ts",
     "sitemap": "bun scripts/generate-sitemaps.ts",
-    "postinstall": "wrangler types"
+    "postinstall": "wrangler types --strict-vars=false"
   },
   "dependencies": {
     "@tanstack/react-router": "^1.170.46",
@@ -47,5 +47,6 @@
     "vite": "^8.3.5",
     "vitest": "^5.1.0",
     "wrangler": "^4.157.0"
-  }
+  },
+  "packageManager": "bun@1.4.4"
 }

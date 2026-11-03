@@ -1,18 +1,9 @@
 {
-  "compilerOptions": {
-    "target": "ES2023",
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "jsx": "react-jsx",
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "noEmit": true,
-    "isolatedModules": true,
-    "skipLibCheck": true,
-    "resolveJsonModule": true,
-    "allowImportingTsExtensions": true,
-    "types": ["vite/client", "./worker-configuration.d.ts"]
-  },
-  "include": ["src", "scripts", "*.ts"]
+  // Solution-style root: `tsc -b`, editors and `oxlint --type-aware` map each file to the
+  // project that includes it. Plain `tsc` here checks nothing, so typecheck with `tsc -b`.
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
 }

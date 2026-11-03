@@ -3,24 +3,32 @@
   "name": "techcrunchjapan",
   // Custom entry wrapping @tanstack/react-start/server-entry (redirects, media proxy, edge cache).
   "main": "src/server.ts",
+  // Node.js compatibility (needed by `pg`) is on by default for dates >= 2026-08-04.
+  // Dates >= 2026-11-17 switch on the new module registry and Request.signal: re-test
+  // before moving past that.
   "compatibility_date": "2026-11-01",
-  "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
-  "upload_source_maps": true,
 
-  // The deployed version id is part of the edge-cache key (see src/server.ts).
-  "version_metadata": { "binding": "CF_VERSION_METADATA" },
+  // The Worker has no secrets. Declaring none keeps the variables in .env (DATABASE_URL,
+  // SOURCE_DATABASE_URL for the scripts) out of the Worker env, `wrangler types` and dist/.
+  "secrets": { "required": [] },
 
   "vars": {
     // Public R2 bucket holding the original WordPress uploads (/wp-content/uploads/*).
     "UPLOADS_ORIGIN": "https://r2.techcrunchjapan.com/",
+    // "cache-api": the Worker caches pages per data center with the Cache API.
+    // "none": leave caching to Workers Cache (enable "cache" below; Workers Paid recommended).
+    "EDGE_CACHE": "cache-api",
   },
 
-  // Neon via Hyperdrive (connection pooling close to the database).
-  // Create it once with:
-  //   npx wrangler hyperdrive create techcrunchjapan --connection-string="postgresql://..."
+  // The deployed version id is part of the Cache API key (see src/server.ts).
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
+
+  // Neon via Hyperdrive (connection pooling and query caching close to the database).
+  // Create it once with the direct (non-pooled) Neon connection string:
+  //   bunx wrangler hyperdrive create techcrunchjapan --max-age=3600 --connection-string="postgresql://..."
   // and paste the returned id below. Local development connects to `localConnectionString`
-  // (or CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE).
+  // or to CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE (e.g. in .env).
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
@@ -29,6 +37,16 @@
     },
   ],
 
-  // Serve the site on the production domain once ready to switch over from Vercel:
+  // Workers Cache: Cloudflare answers from a tiered cache without running the Worker, using
+  // the Cloudflare-CDN-Cache-Control headers the Worker sends. Every request (static assets
+  // included) is then billed as a Worker request. Set EDGE_CACHE to "none" when enabling it.
+  // "cache": { "enabled": true },
+
+  // Run cache misses next to the database (Neon in AWS Tokyo).
+  // "placement": { "region": "aws:ap-northeast-1" },
+
+  // Production domain, once ready to switch over from Vercel (remove Vercel's DNS record first).
+  // Adding routes turns workers.dev off unless "workers_dev" is set explicitly.
   // "routes": [{ "pattern": "techcrunchjapan.com", "custom_domain": true }],
+  "workers_dev": true,
 }

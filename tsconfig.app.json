@@ -1,0 +1,29 @@
+{
+  // src/: routes and components run in the browser and in workerd (SSR, server functions).
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    // Vite 8's default client build target is Chrome/Edge 111, Firefox 114, Safari 16.4.
+    "target": "ES2023",
+    // DOM.Iterable is merged into DOM since TS 6 (kept for editors on an older TS).
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    // TS 6+ defaults `types` to []. worker-configuration.d.ts comes from `wrangler types`
+    // (Env bindings + workerd runtime types for the configured compatibility date).
+    "types": ["vite/client", "./worker-configuration.d.ts"],
+
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "moduleDetection": "force",
+    // Required: lib.dom.d.ts and the workerd runtime types declare the same globals.
+    "skipLibCheck": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"]
+}
