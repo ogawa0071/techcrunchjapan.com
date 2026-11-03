@@ -19,7 +19,8 @@ const YEAR = 365 * DAY
 /**
  * How long the edge keeps a response, by status. The archive is frozen, so pages are kept
  * as long as the old ISR revalidate (30 days); every deployment starts with a fresh cache.
- * Server-function responses (client-side navigation) are always 200, even for not-found.
+ * Server-function replies (client-side navigation) carry notFound / redirect results with
+ * status 200; failures get a 5xx status (db/client.server.ts, start.ts) and are not kept.
  */
 const EDGE_TTL: Partial<Record<number, number>> = {
   200: 30 * DAY,
@@ -109,9 +110,23 @@ function withCacheHeaders(
 }
 
 /**
+ * Cache key: the path plus only the query parameters that change the response (`page` for
+ * listings, `payload` for server functions), so tracking parameters (utm_*, fbclid, ...)
+ * cannot multiply entries or force renders. The Worker version is included because HTML
+ * cached by a previous deployment references /assets/* files that no longer exist.
+ */
+function cacheKey(url: URL, version: string): Request {
+  const key = new URL(url.pathname, url.origin)
+  const param = url.pathname.startsWith(SERVER_FN_PREFIX) ? 'payload' : 'page'
+  const value = url.searchParams.get(param)
+  if (value !== null) key.searchParams.set(param, value)
+  key.searchParams.set('__version', version)
+  return new Request(key, { method: 'GET' })
+}
+
+/**
  * Per-data-center cache (Cache API) for SSR documents and GET server-function responses
- * (the data requested on client-side navigation). Keys include the Worker version: HTML
- * cached by a previous deployment would reference /assets/* files that no longer exist.
+ * (the data requested on client-side navigation).
  */
 async function withCacheApi(
   request: Request,
@@ -119,9 +134,7 @@ async function withCacheApi(
   ctx: ExecutionContext,
   render: () => Response | Promise<Response>,
 ): Promise<Response> {
-  const keyUrl = new URL(request.url)
-  keyUrl.searchParams.set('__version', env.CF_VERSION_METADATA.id)
-  const key = new Request(keyUrl, { method: 'GET' })
+  const key = cacheKey(new URL(request.url), env.CF_VERSION_METADATA.id)
   const cache = caches.default
 
   const hit = await cache.match(key)
@@ -137,34 +150,62 @@ async function withCacheApi(
   return withCacheHeaders(stored, 'MISS')
 }
 
-export default {
-  async fetch(request, env, ctx) {
-    const url = new URL(request.url)
-    const isRead = request.method === 'GET' || request.method === 'HEAD'
+async function respond(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<Response> {
+  const url = new URL(request.url)
 
-    if (url.pathname.startsWith('/wp-content/uploads/'))
-      return proxyUpload(request, url, env)
+  if (url.pathname.startsWith('/wp-content/uploads/')) {
+    return proxyUpload(request, url, env)
+  }
 
-    if (isRead && !url.pathname.startsWith(SERVER_FN_PREFIX)) {
+  // A read-only site: every page and server function is a GET.
+  if (request.method !== 'GET') {
+    return new Response('Method Not Allowed', {
+      status: 405,
+      headers: { Allow: 'GET, HEAD' },
+    })
+  }
+
+  if (!url.pathname.startsWith(SERVER_FN_PREFIX)) {
+    if (url.pathname === '/') {
       // WordPress search URLs (`/?s=…`); also the no-JavaScript fallback of <SearchForm>.
-      if (url.pathname === '/' && url.searchParams.has('s')) {
+      if (url.searchParams.has('s')) {
         const query = url.searchParams.get('s')?.trim() ?? ''
         return redirectTo(query ? searchPath(query) : '/search/')
       }
-
-      const canonical = canonicalPath(url.pathname)
-      if (canonical !== url.pathname) return redirectTo(canonical + url.search)
-
-      // Existing static files are served before the Worker runs, so a file-like path that
-      // gets here does not exist (e.g. /favicon.ico or stale /assets/*.js after a deploy).
-      if (isFileLike(url.pathname))
-        return new Response('Not Found', { status: 404 })
+      // WordPress shortlinks (`/?p=<post id>`), resolved by the archives route.
+      const id = url.searchParams.get('p')
+      if (id && /^\d+$/.test(id)) return redirectTo(`/archives/${id}/`)
     }
 
-    if (request.method !== 'GET') return handler.fetch(request)
-    if (env.EDGE_CACHE === 'cache-api') {
-      return withCacheApi(request, env, ctx, () => handler.fetch(request))
+    const canonical = canonicalPath(url.pathname)
+    if (canonical !== url.pathname) return redirectTo(canonical + url.search)
+
+    // Existing static files are served before the Worker runs, so a file-like path that
+    // gets here does not exist (e.g. /favicon.ico or stale /assets/*.js after a deploy).
+    if (isFileLike(url.pathname)) {
+      return new Response('Not Found', { status: 404 })
     }
-    return withCacheHeaders(await handler.fetch(request))
+  }
+
+  if (env.EDGE_CACHE === 'cache-api') {
+    return withCacheApi(request, env, ctx, () => handler.fetch(request))
+  }
+  return withCacheHeaders(await handler.fetch(request))
+}
+
+export default {
+  async fetch(request, env, ctx) {
+    // HEAD (monitors, link checkers) is answered like GET, from the cache when possible.
+    if (request.method !== 'HEAD') return respond(request, env, ctx)
+    const response = await respond(
+      new Request(request, { method: 'GET' }),
+      env,
+      ctx,
+    )
+    return new Response(null, response)
   },
 } satisfies ExportedHandler<Env>

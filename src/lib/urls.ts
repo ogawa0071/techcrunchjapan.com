@@ -14,23 +14,30 @@ function tryDecodeURI(path: string): string | undefined {
   }
 }
 
-/** The last path segment contains a dot (`/favicon.ico`, `/assets/x.js`). */
+/**
+ * The last path segment contains a dot (`/favicon.ico`, `/assets/x.js`). Search queries
+ * may contain dots (`/search/node.js`), so they never count as files.
+ */
 export function isFileLike(pathname: string): boolean {
+  if (pathname.startsWith('/search/')) return false
   return pathname.slice(pathname.lastIndexOf('/') + 1).includes('.')
 }
 
 /**
  * All legacy / canonical URL fixes in one place, so that clients get at most one 301:
- * - `/archives/…` (WordPress) → `/…`
+ * - repeated slashes are collapsed (the router's own redirect for them is a 307).
+ * - `/archives/YYYY/MM/DD/…` (WordPress) → `/YYYY/MM/DD/…`. `/archives/<slug or id>/`, the
+ *   older permalink format without a date, is kept: the archives route looks it up.
  * - slugs truncated mid-escape (`…%e3%`) get the `%` of their broken tail escaped as `%25`,
  *   exactly like the canonical URLs (lib/slug.ts). TanStack Start answers 400 to paths it
  *   cannot decode, and could not hydrate them either.
  * - a missing trailing slash is added (TanStack's own redirect for it is a 307).
  */
 export function canonicalPath(pathname: string): string {
-  let path = pathname
+  let path = pathname.replace(/\/{2,}/g, '/')
   if (path === '/archives' || path.startsWith('/archives/')) {
-    path = path.slice('/archives'.length) || '/'
+    const rest = path.slice('/archives'.length)
+    if (rest.split('/').filter(Boolean).length !== 1) path = rest || '/'
   }
   if (tryDecodeURI(path) === undefined)
     path = path.split('/').map(slugToPathSegment).join('/')

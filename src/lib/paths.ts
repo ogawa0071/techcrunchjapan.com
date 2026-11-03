@@ -23,7 +23,10 @@ export function withPage(path: string, page: number): string {
 
 // Typed <Link> targets. The router percent-encodes params itself, so it gets the
 // decoded form of the canonical path segment (never the raw stored slug, which would
-// be double-encoded as %25xx).
+// be double-encoded as %25xx). `exact` keeps links to other pages of the same listing
+// from being marked as the current page (aria-current).
+
+const exact = { exact: true } as const
 
 const routerParam = (slug: string) =>
   decodeURIComponent(slugToPathSegment(slug))
@@ -32,14 +35,23 @@ export function postLink(post: { slug: string; createdAt: Date }) {
   return {
     to: '/$year/$month/$day/$slug/',
     params: { ...jstDateParts(post.createdAt), slug: routerParam(post.slug) },
+    activeOptions: exact,
   } as const
 }
 
 export const categoryLink = (slug: string) =>
-  ({ to: '/category/$slug/', params: { slug: routerParam(slug) } }) as const
+  ({
+    to: '/category/$slug/',
+    params: { slug: routerParam(slug) },
+    activeOptions: exact,
+  }) as const
 
 export const authorLink = (slug: string) =>
-  ({ to: '/author/$slug/', params: { slug: routerParam(slug) } }) as const
+  ({
+    to: '/author/$slug/',
+    params: { slug: routerParam(slug) },
+    activeOptions: exact,
+  }) as const
 
 export const PLACEHOLDER_THUMBNAIL =
   '/wp-content/themes/techcrunch-jp-2015/assets/images/210x210.png'

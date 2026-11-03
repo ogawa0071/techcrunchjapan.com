@@ -38,7 +38,11 @@ function HomePage() {
                 <div className="tabs tabs-large">
                   <ul className="tab-list tabs-no-select">
                     <li className="latest">
-                      <Link to="/" className="active tabs-no-preventdefault">
+                      <Link
+                        to="/"
+                        activeOptions={{ exact: true }}
+                        className="active tabs-no-preventdefault"
+                      >
                         新着順
                       </Link>
                     </li>

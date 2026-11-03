@@ -134,6 +134,35 @@ export async function getPostBySlug(
   return post
 }
 
+export interface PostLocation {
+  slug: string
+  createdAt: Date
+}
+
+export async function getPostLocationById(
+  db: Database,
+  id: number,
+): Promise<PostLocation | undefined> {
+  const [post] = await db
+    .select({ slug: posts.slug, createdAt: posts.createdAt })
+    .from(posts)
+    .where(eq(posts.id, id))
+    .limit(1)
+  return post
+}
+
+export async function getPostLocationBySlug(
+  db: Database,
+  slug: string,
+): Promise<PostLocation | undefined> {
+  const [post] = await db
+    .select({ slug: posts.slug, createdAt: posts.createdAt })
+    .from(posts)
+    .where(eq(posts.slug, slug))
+    .limit(1)
+  return post
+}
+
 export async function getCategoryPosts(
   db: Database,
   slug: string,

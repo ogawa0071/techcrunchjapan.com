@@ -18,6 +18,7 @@ export function Pagination({
             <Link
               to="./"
               search={{ page: page > 2 ? page - 1 : undefined }}
+              activeOptions={{ exact: true }}
               rel="prev"
             >
               &laquo; 新しい記事
@@ -26,7 +27,12 @@ export function Pagination({
         )}
         {hasNextPage && (
           <li>
-            <Link to="./" search={{ page: page + 1 }} rel="next">
+            <Link
+              to="./"
+              search={{ page: page + 1 }}
+              activeOptions={{ exact: true }}
+              rel="next"
+            >
               過去の記事 &raquo;
             </Link>
           </li>

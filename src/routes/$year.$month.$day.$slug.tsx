@@ -1,4 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router'
+import {
+  createFileRoute,
+  redirect,
+  type AnyRouter,
+} from '@tanstack/react-router'
 
 import { Article } from '../components/Article'
 import { authorPath, postPath } from '../lib/paths'
@@ -19,7 +23,16 @@ export const Route = createFileRoute('/$year/$month/$day/$slug')({
         : false,
   },
   staticData: { bodyClass: 'single-post' },
-  loader: ({ params }) => getPost({ data: params }),
+  loader: async ({ params, location }) => {
+    const result = await getPost({ data: params })
+    if ('redirectTo' in result) {
+      throw redirect<AnyRouter>({
+        href: result.redirectTo + location.searchStr,
+        statusCode: 301,
+      })
+    }
+    return result.post
+  },
   head: ({ loaderData: post }) => {
     if (!post) return {}
     const path = postPath(post)

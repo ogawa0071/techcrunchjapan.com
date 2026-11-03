@@ -26,7 +26,9 @@ export function Footer() {
           <div className="g g-3up g-nogutter">
             <div className="gi">
               <h4 className="footer-logo">
-                <Link to="/">TechCrunch</Link>
+                <Link to="/" activeOptions={{ exact: true }}>
+                  TechCrunch
+                </Link>
               </h4>
               <div>
                 <ul className="footer-links-about">

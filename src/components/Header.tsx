@@ -55,7 +55,11 @@ export function Header() {
               >
                 <span className="is-vishidden">Menu</span>
               </a>
-              <Link to="/" className="logo-link">
+              <Link
+                to="/"
+                activeOptions={{ exact: true }}
+                className="logo-link"
+              >
                 <img src={LOGO} alt="TechCrunch" className="logo" />
               </Link>
               <div className="header-logo-bar cf js">
@@ -113,12 +117,16 @@ export function Header() {
       >
         <div className="lc">
           <div className="lc">
-            <Link to="/" className="logo-link">
+            <Link to="/" activeOptions={{ exact: true }} className="logo-link">
               <img src={LOGO} alt="TechCrunch" className="logo" />
             </Link>
             <ul className="sticky-nav-list">
               <li>
-                <Link to="/" className="nav-parent">
+                <Link
+                  to="/"
+                  activeOptions={{ exact: true }}
+                  className="nav-parent"
+                >
                   トピックス
                 </Link>
               </li>
@@ -152,7 +160,7 @@ export function Header() {
         >
           <ul>
             <li className="mobile-header-menu-tc-logo">
-              <Link to="/">
+              <Link to="/" activeOptions={{ exact: true }}>
                 <img
                   src={LOGO}
                   alt="TechCrunch"

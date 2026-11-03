@@ -1,5 +1,4 @@
-import type { AnyRouter } from '@tanstack/react-router'
-import { notFound, redirect } from '@tanstack/react-router'
+import { notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 
 import { withDb } from '../db/client.server'
@@ -7,7 +6,7 @@ import { jstDateParts } from '../lib/date'
 import { postPath } from '../lib/paths'
 import { toStoredSlug } from '../lib/slug'
 import * as queries from './queries.server'
-import type { PostPage } from './types'
+import type { PostDetail, PostPage } from './types'
 
 // Server functions are plain GET endpoints (/_serverFn/<id>?payload=…) that anyone can
 // call, so inputs are coerced here instead of trusting the TypeScript types.
@@ -22,8 +21,11 @@ function toPage(value: unknown): number {
   return page
 }
 
+/** PostgreSQL text cannot hold NUL characters. */
 function toText(value: unknown, maxLength = 1000): string {
-  return typeof value === 'string' ? value.slice(0, maxLength) : ''
+  return typeof value === 'string'
+    ? value.replaceAll('\0', '').slice(0, maxLength)
+    : ''
 }
 
 /** Listings past their last page are 404s rather than empty pages. */
@@ -60,6 +62,9 @@ export interface PostInput {
   slug: string
 }
 
+/** An article, or the canonical path to redirect to (the loader keeps the query string). */
+export type PostResult = { post: PostDetail } | { redirectTo: string }
+
 export const getPost = createServerFn({ method: 'GET' })
   .validator((data: PostInput): PostInput => ({
     year: toText(data?.year),
@@ -67,7 +72,7 @@ export const getPost = createServerFn({ method: 'GET' })
     day: toText(data?.day),
     slug: toText(data?.slug),
   }))
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<PostResult> => {
     const slug = toStoredSlug(data.slug)
     const post = slug
       ? await withDb((db) => queries.getPostBySlug(db, slug))
@@ -82,9 +87,29 @@ export const getPost = createServerFn({ method: 'GET' })
       data.month !== date.month ||
       data.day !== date.day
     ) {
-      throw redirect<AnyRouter>({ href: postPath(post), statusCode: 301 })
+      return { redirectTo: postPath(post) }
     }
-    return post
+    return { post }
+  })
+
+/**
+ * Canonical path of an article addressed by an old dateless permalink:
+ * `/archives/<slug>/` or `/archives/<WordPress post id>/` (also `/?p=<id>`).
+ */
+export const getLegacyPostPath = createServerFn({ method: 'GET' })
+  .validator((data: { key: string }) => ({ key: toText(data?.key) }))
+  .handler(async ({ data }) => {
+    const id = /^\d{1,9}$/.test(data.key) ? Number(data.key) : undefined
+    const slug = toStoredSlug(data.key)
+    const post = await withDb((db) =>
+      id === undefined
+        ? slug
+          ? queries.getPostLocationBySlug(db, slug)
+          : Promise.resolve(undefined)
+        : queries.getPostLocationById(db, id),
+    )
+    if (!post) throw notFound()
+    return postPath(post)
   })
 
 export const getCategoryPosts = createServerFn({ method: 'GET' })

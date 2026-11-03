@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ArchivesKeyRouteImport } from './routes/archives.$key'
 import { Route as AuthorSlugRouteImport } from './routes/author.$slug'
 import { Route as CategorySlugRouteImport } from './routes/category.$slug'
 import { Route as SearchIndexRouteImport } from './routes/search.index'
@@ -20,6 +21,11 @@ import { Route as YearMonthDaySlugRouteImport } from './routes/$year.$month.$day
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ArchivesKeyRoute = ArchivesKeyRouteImport.update({
+  id: '/archives/$key',
+  path: '/archives/$key',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthorSlugRoute = AuthorSlugRouteImport.update({
@@ -55,6 +61,7 @@ const YearMonthDaySlugRoute = YearMonthDaySlugRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/archives/$key': typeof ArchivesKeyRoute
   '/author/$slug': typeof AuthorSlugRoute
   '/category/$slug': typeof CategorySlugRoute
   '/search/$query': typeof SearchQueryRoute
@@ -64,6 +71,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/archives/$key': typeof ArchivesKeyRoute
   '/author/$slug': typeof AuthorSlugRoute
   '/category/$slug': typeof CategorySlugRoute
   '/search/$query': typeof SearchQueryRoute
@@ -74,6 +82,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/archives/$key': typeof ArchivesKeyRoute
   '/author/$slug': typeof AuthorSlugRoute
   '/category/$slug': typeof CategorySlugRoute
   '/search/$query': typeof SearchQueryRoute
@@ -85,6 +94,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/archives/$key'
     | '/author/$slug'
     | '/category/$slug'
     | '/search/$query'
@@ -94,6 +104,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/archives/$key'
     | '/author/$slug'
     | '/category/$slug'
     | '/search/$query'
@@ -103,6 +114,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/archives/$key'
     | '/author/$slug'
     | '/category/$slug'
     | '/search/$query'
@@ -113,6 +125,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ArchivesKeyRoute: typeof ArchivesKeyRoute
   AuthorSlugRoute: typeof AuthorSlugRoute
   CategorySlugRoute: typeof CategorySlugRoute
   SearchQueryRoute: typeof SearchQueryRoute
@@ -128,6 +141,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/archives/$key': {
+      id: '/archives/$key'
+      path: '/archives/$key'
+      fullPath: '/archives/$key'
+      preLoaderRoute: typeof ArchivesKeyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/author/$slug': {
@@ -177,6 +197,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ArchivesKeyRoute: ArchivesKeyRoute,
   AuthorSlugRoute: AuthorSlugRoute,
   CategorySlugRoute: CategorySlugRoute,
   SearchQueryRoute: SearchQueryRoute,
@@ -189,10 +210,11 @@ export const routeTree = rootRouteImport
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
+import type { startInstance } from './start.ts'
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
     router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }

@@ -38,16 +38,25 @@ export function slugToPathSegment(slug: string): string {
   return head + tail.replaceAll('%', '%25')
 }
 
+/** Characters that WordPress keeps literally in slugs (sanitize_title_with_dashes). */
+const LITERAL_SLUG_CHAR = /^[A-Za-z0-9_%-]$/
+
 /**
  * Converts a route param (decoded by the router) back to the stored WordPress form:
- * ASCII is lowercased and kept, anything else is percent-encoded with lowercase hex.
+ * slug characters are lowercased and kept, everything else (non-ASCII, but also e.g.
+ * `:` or `/` stored as `%3a` / `%2f`) is percent-encoded with lowercase hex.
  * Returns `undefined` for values that cannot be a slug.
  */
 export function toStoredSlug(param: string): string | undefined {
   let slug = ''
   for (const char of param) {
-    if (char.charCodeAt(0) < 0x80) {
+    if (LITERAL_SLUG_CHAR.test(char)) {
       slug += char.toLowerCase()
+      continue
+    }
+    const code = char.codePointAt(0) ?? 0
+    if (code < 0x80) {
+      slug += `%${code.toString(16).padStart(2, '0')}`
       continue
     }
     try {

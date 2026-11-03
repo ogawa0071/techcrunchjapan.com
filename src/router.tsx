@@ -1,5 +1,6 @@
 import { createRouter } from '@tanstack/react-router'
 
+import { ErrorPage } from './components/ErrorPage'
 import { routeTree } from './routeTree.gen'
 
 export function getRouter() {
@@ -14,6 +15,8 @@ export function getRouter() {
     defaultPreload: 'intent',
     // The archive never changes: keep loader data for client-side back/forward navigation.
     defaultStaleTime: 5 * 60 * 1000,
+    // Errors of child routes render with the same component on the server and the client.
+    defaultErrorComponent: ErrorPage,
   })
 }
 

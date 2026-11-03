@@ -9,7 +9,17 @@ describe('canonicalPath', () => {
     ['/2022/03/31/final', '/2022/03/31/final/'],
     ['/archives/2022/03/31/final/', '/2022/03/31/final/'],
     ['/archives', '/'],
+    ['/archives/', '/'],
     ['/archivesfoo/', '/archivesfoo/'],
+    // dateless legacy permalinks are resolved by the archives route
+    [
+      '/archives/20110128communifactory-gets-180m-yen',
+      '/archives/20110128communifactory-gets-180m-yen/',
+    ],
+    ['/archives/12345/', '/archives/12345/'],
+    ['/2022//03/31/final/', '/2022/03/31/final/'],
+    ['/category//fundraising', '/category/fundraising/'],
+    ['/search/node.js', '/search/node.js/'],
     ['/2006/09/24/dapper%e3%81%a7x/', '/2006/09/24/dapper%e3%81%a7x/'],
     // truncated mid-escape: only the broken tail is escaped (one hop, trailing slash added)
     [
@@ -34,6 +44,7 @@ describe('isFileLike', () => {
     expect(isFileLike('/favicon.ico')).toBe(true)
     expect(isFileLike('/assets/index-abc.js')).toBe(true)
     expect(isFileLike('/v1.0/page/')).toBe(false)
+    expect(isFileLike('/search/node.js')).toBe(false)
   })
 })
 

@@ -35,6 +35,8 @@ describe('toStoredSlug', () => {
     'abc%e3%81%84%e',
     'abc%e3%81%84%',
     'abc%e3%81',
+    // ASCII that WordPress stored encoded (one real slug contains `%3a` and `%2f`)
+    'campaignfeed%3atechcrunch%2fstartups',
   ])('round-trips %s through its URL and the router', (slug) => {
     expect(toStoredSlug(routerParam(slugToPathSegment(slug)))).toBe(slug)
   })
@@ -42,6 +44,11 @@ describe('toStoredSlug', () => {
   it('normalizes decoded or uppercase input to the stored form', () => {
     expect(toStoredSlug('dapperで')).toBe('dapper%e3%81%a7')
     expect(toStoredSlug('FINAL')).toBe('final')
+  })
+
+  it('never passes NUL or other non-slug ASCII through literally', () => {
+    expect(toStoredSlug('a\u0000b')).toBe('a%00b')
+    expect(toStoredSlug('a.b c')).toBe('a%2eb%20c')
   })
 
   it('rejects lone surrogates', () => {

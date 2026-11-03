@@ -12,7 +12,9 @@ export function NotFound() {
           <SearchForm />
         </div>
         <p>
-          <Link to="/">トップページへ戻る</Link>
+          <Link to="/" activeOptions={{ exact: true }}>
+            トップページへ戻る
+          </Link>
         </p>
       </div>
     </div>
