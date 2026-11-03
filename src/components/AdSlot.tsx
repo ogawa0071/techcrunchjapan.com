@@ -1,4 +1,4 @@
-import { useRouterState } from '@tanstack/react-router'
+import { ClientOnly, useRouterState } from '@tanstack/react-router'
 import { useEffect } from 'react'
 
 export const ADSENSE_CLIENT = 'ca-pub-8137402229295875'
@@ -31,8 +31,16 @@ function AdUnit({ slot }: { slot: string }) {
   )
 }
 
-/** A responsive AdSense unit; a fresh unit is requested for every page (client-side navigations included). */
+/**
+ * A responsive AdSense unit. Rendered on the client only (adsbygoogle.js mutates the
+ * <ins> before hydration, which React reports as a mismatch), and keyed by pathname so
+ * that every page view - client-side navigations included - requests a fresh ad.
+ */
 export function AdSlot({ slot }: { slot: string }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname })
-  return <AdUnit key={pathname} slot={slot} />
+  return (
+    <ClientOnly fallback={null}>
+      <AdUnit key={pathname} slot={slot} />
+    </ClientOnly>
+  )
 }

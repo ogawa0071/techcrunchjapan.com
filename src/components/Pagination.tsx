@@ -1,16 +1,7 @@
-import { withPage } from '../lib/paths'
-import { SiteLink } from './SiteLink'
+import { Link } from '@tanstack/react-router'
 
-export function Pagination({
-  basePath,
-  page,
-  hasNextPage,
-}: {
-  /** Path of the first page; further pages add `?page=N`. */
-  basePath: string
-  page: number
-  hasNextPage: boolean
-}) {
+/** Previous / next page links for the current listing (`?page=N`, omitted for page 1). */
+export function Pagination({ page, hasNextPage }: { page: number; hasNextPage: boolean }) {
   if (page <= 1 && !hasNextPage) return null
 
   return (
@@ -18,16 +9,16 @@ export function Pagination({
       <ul className="pagination">
         {page > 1 && (
           <li>
-            <SiteLink href={withPage(basePath, page - 1)} rel="prev">
+            <Link to="./" search={{ page: page > 2 ? page - 1 : undefined }} rel="prev">
               &laquo; 新しい記事
-            </SiteLink>
+            </Link>
           </li>
         )}
         {hasNextPage && (
           <li>
-            <SiteLink href={withPage(basePath, page + 1)} rel="next">
+            <Link to="./" search={{ page: page + 1 }} rel="next">
               過去の記事 &raquo;
-            </SiteLink>
+            </Link>
           </li>
         )}
       </ul>

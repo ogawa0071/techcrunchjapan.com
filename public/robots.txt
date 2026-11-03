@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://techcrunchjapan.com/sitemap.xml

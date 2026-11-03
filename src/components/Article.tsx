@@ -1,8 +1,9 @@
+import { Link } from '@tanstack/react-router'
+
 import { formatDate } from '../lib/date'
-import { authorPath, categoryPath } from '../lib/paths'
-import type { PostDetail } from '../server/queries'
+import { authorLink, categoryLink } from '../lib/paths'
+import type { PostDetail } from '../server/types'
 import { Sidebar } from './Sidebar'
-import { SiteLink } from './SiteLink'
 
 export function Article({ post }: { post: PostDetail }) {
   return (
@@ -15,9 +16,9 @@ export function Article({ post }: { post: PostDetail }) {
                 <div className="tags">
                   {post.categories.map((category) => (
                     <div className="tag-item" key={category.id}>
-                      <SiteLink href={categoryPath(category.slug)} className="tag">
+                      <Link {...categoryLink(category.slug)} className="tag">
                         {category.name}
-                      </SiteLink>
+                      </Link>
                       <div className="links"></div>
                     </div>
                   ))}
@@ -28,7 +29,7 @@ export function Article({ post }: { post: PostDetail }) {
                     <time className="timestamp" dateTime={post.createdAt.toISOString()}>
                       {formatDate(post.createdAt)}
                     </time>{' '}
-                    by <SiteLink href={authorPath(post.author.slug)}>{post.author.name}</SiteLink>
+                    by <Link {...authorLink(post.author.slug)}>{post.author.name}</Link>
                   </div>
                 </div>
               </header>

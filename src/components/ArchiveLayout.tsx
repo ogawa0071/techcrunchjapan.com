@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import type { PostSummary } from '../server/queries'
+import type { PostSummary } from '../server/types'
 import { Pagination } from './Pagination'
 import { PostRiver } from './PostRiver'
 import { Sidebar } from './Sidebar'
@@ -11,7 +11,6 @@ export function ArchiveLayout({
   description,
   children,
   posts,
-  basePath,
   page,
   hasNextPage,
 }: {
@@ -19,7 +18,6 @@ export function ArchiveLayout({
   description?: string | null
   children?: ReactNode
   posts: PostSummary[]
-  basePath: string
   page: number
   hasNextPage: boolean
 }) {
@@ -39,7 +37,7 @@ export function ArchiveLayout({
               ) : (
                 <p className="lc-padding">記事が見つかりませんでした。</p>
               )}
-              <Pagination basePath={basePath} page={page} hasNextPage={hasNextPage} />
+              <Pagination page={page} hasNextPage={hasNextPage} />
             </div>
           </div>
           <Sidebar />

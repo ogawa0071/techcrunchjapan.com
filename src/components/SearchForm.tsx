@@ -17,24 +17,28 @@ export function SearchForm({ defaultValue = '' }: { defaultValue?: string }) {
       method="get"
       role="search"
       className="search-form"
+      // The theme floats .search-form right at a fixed width (its header search box).
+      style={{ float: 'none', width: '100%' }}
       onSubmit={(event) => {
         event.preventDefault()
         const query = new FormData(event.currentTarget).get('s')?.toString().trim()
         if (query) void navigate({ href: searchPath(query) })
       }}
     >
-      <label htmlFor={id} className="is-vishidden">
-        記事タイトルを検索
-      </label>
-      <input
-        id={id}
-        type="search"
-        name="s"
-        defaultValue={defaultValue}
-        placeholder="記事タイトルを検索"
-        required
-        style={{ width: '100%', padding: '0.5em', fontSize: '1rem', boxSizing: 'border-box' }}
-      />
+      {/* Markup expected by the theme CSS (bordered fieldset, absolutely positioned input). */}
+      <fieldset>
+        <label htmlFor={id} className="is-vishidden">
+          記事タイトルを検索
+        </label>
+        <input
+          id={id}
+          type="search"
+          name="s"
+          defaultValue={defaultValue}
+          placeholder="記事タイトルを検索"
+          required
+        />
+      </fieldset>
     </form>
   )
 }

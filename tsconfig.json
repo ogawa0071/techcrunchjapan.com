@@ -9,11 +9,10 @@
     "noUncheckedIndexedAccess": true,
     "noEmit": true,
     "isolatedModules": true,
-    "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
-    "types": []
+    "types": ["vite/client", "./worker-configuration.d.ts"]
   },
   "include": ["src", "scripts", "*.ts"]
 }

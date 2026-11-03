@@ -1,52 +1,53 @@
+import { Link } from '@tanstack/react-router'
+
 import { formatDate } from '../lib/date'
-import { authorPath, categoryPath, postPath, thumbnailUrl } from '../lib/paths'
+import { authorLink, categoryLink, postLink, thumbnailUrl } from '../lib/paths'
 import { EXCERPT_DISPLAY_LENGTH } from '../lib/site'
-import type { PostSummary } from '../server/queries'
-import { SiteLink } from './SiteLink'
+import type { PostSummary } from '../server/types'
 
 /** The chronological article list ("river") of the original theme. */
 export function PostRiver({ posts }: { posts: PostSummary[] }) {
   return (
     <ul className="river lc-padding">
       {posts.map((post) => {
-        const href = postPath(post)
+        const link = postLink(post)
         return (
           <li className="river-block" key={post.id}>
             <div className="block block-thumb">
               {post.categories.map((category) => (
                 <div className="tags" key={category.id}>
-                  <SiteLink href={categoryPath(category.slug)} className="tag">
+                  <Link {...categoryLink(category.slug)} className="tag">
                     <span>{category.name}</span>
-                  </SiteLink>
+                  </Link>
                 </div>
               ))}
               <div className="block-content">
                 <span>
-                  <SiteLink href={href} className="thumb">
+                  <Link {...link} className="thumb">
                     <img
                       src={thumbnailUrl(post.featuredMediaUrl, 210, 158)}
                       alt={post.title}
                       loading="lazy"
                       decoding="async"
                     />
-                  </SiteLink>
+                  </Link>
                 </span>
 
                 <h2 className="post-title">
-                  <SiteLink href={href}>{post.title}</SiteLink>
+                  <Link {...link}>{post.title}</Link>
                 </h2>
                 <div className="byline">
                   <time className="timestamp" dateTime={post.createdAt.toISOString()}>
                     {formatDate(post.createdAt)}
                   </time>{' '}
-                  by <SiteLink href={authorPath(post.author.slug)}>{post.author.name}</SiteLink>
+                  by <Link {...authorLink(post.author.slug)}>{post.author.name}</Link>
                 </div>
                 <p className="excerpt">
                   {post.excerpt.slice(0, EXCERPT_DISPLAY_LENGTH)}
                   &hellip;
-                  <SiteLink href={href} className="read-more">
+                  <Link {...link} className="read-more">
                     続きを読む
-                  </SiteLink>
+                  </Link>
                 </p>
                 <div style={{ clear: 'both' }}></div>
               </div>

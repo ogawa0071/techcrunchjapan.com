@@ -2,7 +2,24 @@
   "name": "techcrunchjapan.com",
   "private": true,
   "type": "module",
-  "scripts": {},
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite build && vite preview",
+    "deploy": "vite build && wrangler deploy",
+    "cf-typegen": "wrangler types",
+    "typecheck": "wrangler types && tsc",
+    "lint": "oxlint",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
+    "check": "bun run typecheck && bun run lint && bun run fmt:check",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "db:copy-from-tidb": "bun scripts/migrate-from-tidb.ts",
+    "sitemap": "bun scripts/generate-sitemaps.ts",
+    "postinstall": "wrangler types"
+  },
   "dependencies": {
     "@tanstack/react-router": "^1.170.46",
     "@tanstack/react-start": "^1.169.4",
@@ -13,6 +30,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.67.0",
+    "@types/node": "^26.6.6",
     "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

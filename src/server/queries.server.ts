@@ -2,6 +2,7 @@ import { and, desc, eq, ilike, inArray, sql, type SQL } from 'drizzle-orm'
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
 
 import { authors, categories, postCategories, posts, postTags, tags } from '../db/schema'
+import type { CategoryRef, PostDetail, PostPage, PostSummary, TermPostPage } from './types'
 
 export type Database = PgDatabase<PgQueryResultHKT>
 
@@ -9,43 +10,6 @@ export const PAGE_SIZE = 20
 
 /** Width of the slug column in the old MySQL schema (Prisma's VARCHAR(191)); longer slugs were cut. */
 const LEGACY_SLUG_LENGTH = 191
-
-export interface CategoryRef {
-  id: number
-  slug: string
-  name: string
-}
-
-export interface PostSummary {
-  id: number
-  slug: string
-  title: string
-  excerpt: string
-  featuredMediaUrl: string | null
-  createdAt: Date
-  author: { slug: string; name: string }
-  categories: CategoryRef[]
-}
-
-export interface PostDetail extends PostSummary {
-  content: string
-}
-
-export interface Term {
-  slug: string
-  name: string
-  description: string | null
-}
-
-export interface PostPage {
-  posts: PostSummary[]
-  page: number
-  hasNextPage: boolean
-}
-
-export interface TermPostPage extends PostPage {
-  term: Term
-}
 
 /** Categories of the current `posts` row as a JSON array (one round trip, no N+1). */
 const postCategoriesJson = sql<CategoryRef[]>`coalesce((
@@ -132,7 +96,7 @@ export async function getPostBySlug(db: Database, slug: string): Promise<PostDet
   const candidates =
     slug.length > LEGACY_SLUG_LENGTH ? [slug, slug.slice(0, LEGACY_SLUG_LENGTH)] : [slug]
   const [post] = await db
-    .select({ ...summaryColumns, content: posts.content })
+    .select({ ...summaryColumns, content: posts.content, updatedAt: posts.updatedAt })
     .from(posts)
     .innerJoin(authors, eq(authors.id, posts.authorId))
     .where(inArray(posts.slug, candidates))
