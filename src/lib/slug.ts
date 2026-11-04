@@ -1,0 +1,78 @@
+/**
+ * WordPress slugs are lowercase ASCII where every non-ASCII character is stored
+ * percent-encoded (`%e3%81%82`). Some slugs were cut at 191 characters by the old
+ * MySQL schema, which can leave a dangling, undecodable sequence at the end
+ * (`...%e3%81` or `...%e`).
+ */
+
+/**
+ * Returns the decoded string, or `undefined` when it is malformed.
+ *
+ * The result must be used by callers: Vite 8 (Rolldown) treats decodeURI* as pure and
+ * drops calls whose result is unused, even inside try/catch.
+ */
+export function tryDecodeURIComponent(value: string): string | undefined {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Splits a slug into its longest decodable prefix and the undecodable rest. The rest
+ * always starts at a `%`, so only those positions are tried (a linear number of
+ * attempts per escape instead of one per character).
+ */
+function splitDecodable(slug: string): [head: string, tail: string] {
+  if (tryDecodeURIComponent(slug) !== undefined) return [slug, '']
+  for (
+    let end = slug.lastIndexOf('%');
+    end > 0;
+    end = slug.lastIndexOf('%', end - 1)
+  ) {
+    if (tryDecodeURIComponent(slug.slice(0, end)) !== undefined) {
+      return [slug.slice(0, end), slug.slice(end)]
+    }
+  }
+  return ['', slug]
+}
+
+/**
+ * The URL path segment for a stored slug. Valid slugs are used verbatim; a broken tail
+ * gets its `%` escaped as `%25`, so that the URL is valid and the router can decode it.
+ */
+export function slugToPathSegment(slug: string): string {
+  const [head, tail] = splitDecodable(slug)
+  return head + tail.replaceAll('%', '%25')
+}
+
+/** Characters that WordPress keeps literally in slugs (sanitize_title_with_dashes). */
+const LITERAL_SLUG_CHAR = /^[A-Za-z0-9_%-]$/
+
+/**
+ * Converts a route param (decoded by the router) back to the stored WordPress form:
+ * slug characters are lowercased and kept, everything else (non-ASCII, but also e.g.
+ * `:` or `/` stored as `%3a` / `%2f`) is percent-encoded with lowercase hex.
+ * Returns `undefined` for values that cannot be a slug.
+ */
+export function toStoredSlug(param: string): string | undefined {
+  let slug = ''
+  for (const char of param) {
+    if (LITERAL_SLUG_CHAR.test(char)) {
+      slug += char.toLowerCase()
+      continue
+    }
+    const code = char.codePointAt(0) ?? 0
+    if (code < 0x80) {
+      slug += `%${code.toString(16).padStart(2, '0')}`
+      continue
+    }
+    try {
+      slug += encodeURIComponent(char).toLowerCase()
+    } catch {
+      return undefined // lone surrogate
+    }
+  }
+  return slug
+}

@@ -1,0 +1,25 @@
+{
+  // Runs on Bun/Node: one-off scripts, the D1 integration tests (test/) and tool configs
+  // (vite, vitest, drizzle-kit).
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    "target": "ES2024",
+    "lib": ["ES2024"],
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    // Scripts only use node:* modules and process.env (no DOM, no Workers globals).
+    "types": ["node"],
+
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "moduleDetection": "force",
+    "skipLibCheck": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["scripts", "test", "*.config.ts"]
+}

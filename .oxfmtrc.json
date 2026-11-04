@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  // Same style as the previous Prettier config ({ singleQuote: true, semi: false },
+  // Prettier's default printWidth 80; oxfmt's own default is 100).
+  "singleQuote": true,
+  "semi": false,
+  "printWidth": 80,
+  "sortImports": true,
+  // .gitignore'd files are skipped by the CLI but NOT by the editor integration (LSP),
+  // so generated files are listed here explicitly. public/index.css is the legacy
+  // theme stylesheet (not valid enough to be formatted).
+  "ignorePatterns": [
+    "src/routeTree.gen.ts",
+    "worker-configuration.d.ts",
+    "drizzle/",
+    "public/"
+  ]
+}

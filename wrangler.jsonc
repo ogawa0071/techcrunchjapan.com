@@ -1,0 +1,86 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "techcrunchjapan",
+  // Custom entry wrapping @tanstack/react-start/server-entry (redirects, media proxy, edge cache).
+  "main": "src/server.ts",
+  // Node.js compatibility (TanStack Start uses node:async_hooks) is on by default for dates
+  // >= 2026-08-04. Dates >= 2026-11-17 switch on the new module registry and
+  // Request.signal: re-test before moving past that.
+  "compatibility_date": "2026-11-01",
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "redact_query_string": false,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "invocation_logs": true,
+      "persist": true,
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+    },
+    "issue_detection": {
+      "enabled": true,
+    },
+  },
+
+  // The Worker has no secrets. Declaring none keeps the variables in .env (credentials of
+  // the scripts, e.g. SOURCE_DATABASE_URL) out of the Worker env, `wrangler types` and dist/.
+  "secrets": { "required": [] },
+
+  "vars": {
+    // Public R2 bucket holding the original WordPress uploads (/wp-content/uploads/*).
+    "UPLOADS_ORIGIN": "https://r2.techcrunchjapan.com/",
+    // "cache-api": the Worker caches pages per data center with the Cache API.
+    // "none": leave caching to Workers Cache (enable "cache" below; Workers Paid recommended).
+    "EDGE_CACHE": "cache-api",
+  },
+
+  // The deployed version id is part of the Cache API key (see src/server.ts).
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
+
+  // Cloudflare D1 (SQLite). Create the database once, close to the readers:
+  //   bunx wrangler d1 create techcrunchjapan --location apac --no-update-config
+  // and paste the returned database_id below. `bun run dev` and the db:* scripts use a
+  // local copy under .wrangler/state; the scripts reach this database with --remote.
+  // Migrations: drizzle-kit writes one folder per migration (drizzle/<timestamp>_<name>/
+  // migration.sql); `bun run db:migrate` applies them with `wrangler d1 migrations apply`.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "techcrunchjapan",
+      "database_id": "92adb873-41bd-42e4-98ee-c42c7e8e62e6",
+      "migrations_dir": "drizzle",
+      "migrations_pattern": "drizzle/*/migration.sql",
+    },
+  ],
+
+  // Limits on uncached requests that make D1 read many rows: title searches and listing
+  // pages from DEEP_PAGE on (src/server/limits.server.ts). Counted per Cloudflare location.
+  // namespace_id: any number not used by another rate limiter in the account.
+  "ratelimits": [
+    {
+      "name": "QUERY_LIMIT_PER_CLIENT",
+      "namespace_id": "1001",
+      "simple": { "limit": 20, "period": 60 },
+    },
+    {
+      "name": "QUERY_LIMIT_TOTAL",
+      "namespace_id": "1002",
+      "simple": { "limit": 60, "period": 60 },
+    },
+  ],
+
+  // Workers Cache: Cloudflare answers from a tiered cache without running the Worker, using
+  // the Cloudflare-CDN-Cache-Control headers the Worker sends. Every request (static assets
+  // included) is then billed as a Worker request. Set EDGE_CACHE to "none" when enabling it.
+  // "cache": { "enabled": true },
+
+  // Production domain, once ready to switch over from Vercel (remove Vercel's DNS records
+  // first; redirect www with a zone Redirect Rule). Set "workers_dev" to false then.
+  // "routes": [{ "pattern": "techcrunchjapan.com", "custom_domain": true }],
+  "workers_dev": true,
+}
