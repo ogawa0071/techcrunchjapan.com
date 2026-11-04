@@ -12,17 +12,17 @@
 | ORM / マイグレーション          | [Drizzle ORM](https://orm.drizzle.team) / drizzle-kit（1.0 の RC 版）。マイグレーションの適用は wrangler |
 | Lint / Format                   | [Oxc](https://oxc.rs)（oxlint / oxfmt）                                                                  |
 | テスト / 型チェック             | Vitest / TypeScript 7                                                                                    |
-| 画像（`/wp-content/uploads/*`） | R2（`r2.techcrunchjapan.com`）を Worker がプロキシ                                                       |
+| 画像（`/wp-content/uploads/*`） | R2 のバケット（`techcrunchjapan`）を Worker が R2 バインディングで直接配信                               |
 | パッケージマネージャ            | Bun                                                                                                      |
 
 ```
 src/
-  server.ts            Worker のエントリ（旧 URL のリダイレクト、画像プロキシ、エッジキャッシュ）
+  server.ts            Worker のエントリ（旧 URL のリダイレクト、画像の配信、エッジキャッシュ）
   router.tsx           ルーター設定
   routes/              ページ（ファイルベースルーティング）
   components/          UI（旧 WordPress テーマのマークアップ / CSS を踏襲）
   server/functions.ts  サーバー関数（ページのデータ取得。クライアント遷移時は GET /_serverFn/…）
-  server/*.server.ts   DB アクセス（サーバー専用）
+  server/*.server.ts   D1・R2 へのアクセス（サーバー専用）
   db/schema.ts         Drizzle スキーマ
   lib/                 日付・URL・スラッグ・検索・SEO などの共通処理
 drizzle/               マイグレーション SQL（drizzle-kit で生成）
@@ -57,7 +57,7 @@ SOURCE_DATABASE_URL="mysql://USER:PASSWORD@HOST:4000/DB" bun run db:copy-from-ti
 bun run dev
 ```
 
-本番のデータで動かしたいときは、`wrangler.jsonc` の D1 バインディングに一時的に `"remote": true` を付けると、開発サーバーが本番の D1 を読みます（`bunx wrangler login` が必要です。アプリは DB に書き込みません）。この変更はコミットしないでください。
+本番のデータで動かしたいときは、`wrangler.jsonc` の D1 バインディングに一時的に `"remote": true` を付けると、開発サーバーが本番の D1 を読みます（`bunx wrangler login` が必要です。アプリは DB に書き込みません）。画像（`/wp-content/uploads/*`）もローカルの空の R2 バケットから読むため、開発サーバーでは表示されません。R2 バインディングに同じく `"remote": true` を付けると本番の画像が表示されます。これらの変更はコミットしないでください。
 
 ローカルの D1 は `wrangler.jsonc` の `database_id` ごとに別のファイルです。本番の `database_id` を設定する（本番環境の構築の手順 2）と、ローカルは空のデータベースに切り替わるので、`bun run db:migrate` と記事データのコピーをやり直してください。本番環境を先に作ってから、ローカルの準備をすると一度で済みます。
 
@@ -126,7 +126,7 @@ bun run dev
    2. `wrangler.jsonc` の `routes`（カスタムドメイン）のコメントを外し、`workers_dev` を `false` にして再度デプロイします。DNS レコードと証明書は Cloudflare が作成します。
    3. www は Worker に割り当てず、ゾーンの Redirect Rules で `www.techcrunchjapan.com/*` を `https://techcrunchjapan.com/${1}`（301、クエリ文字列を保持）へ転送します。www には転送用の DNS レコード（プロキシ有効の `AAAA 100::` など）が必要です。
    4. Vercel で自動だった HTTPS への転送と HSTS は、Worker が HTTP のアクセスを HTTPS へリダイレクトし、`Strict-Transport-Security` ヘッダーを付けることで引き継いでいます。静的ファイルも含めて確実にするため、ゾーン設定の「Always Use HTTPS」も有効にしてください。
-   5. ゾーンのセキュリティ設定（Bot Fight Mode など）が `r2.techcrunchjapan.com` へのアクセスにチャレンジを出していないか確認します（Worker が画像を取得できなくなります）。
+   5. `/wp-content/uploads/*` を R2 に転送していた別の Worker と、そのルートを削除します（このアプリが R2 バインディングで配信します）。R2 の公開アクセス（`r2.techcrunchjapan.com`）もアプリでは使わなくなるので、ほかで使っていなければ無効にできます。
    6. 最後に Vercel のプロジェクトを削除します。
 
 8. **サイトマップの再生成**（任意）: 本番の D1 から `lastmod` 付きのサイトマップを作り直してコミットします。
@@ -164,7 +164,7 @@ D1 は読み取った行数で課金され、その分だけ時間もかかる�
 - **静的ファイル**（`public/`、ビルド済み JS / CSS）は Worker を通らずに配信されます。キャッシュ期間は `public/_headers` で指定しています。
 - **ページと、クライアント遷移時のデータ（GET `/_serverFn/…`）** は、既定では Worker が Cache API でデータセンターごとに 30 日間キャッシュします（旧 ISR の `revalidate` と同じ）。404 は 1 日です。キャッシュキーにデプロイのバージョンを含めているため、デプロイすると新しいキャッシュに切り替わります。レスポンスヘッダー `X-Edge-Cache` で HIT / MISS を確認できます。ブラウザには毎回再検証させます（`Cache-Control: max-age=0`）。
 - Workers Paid プランなら Cloudflare の [Workers Cache](https://developers.cloudflare.com/workers/cache/) への切り替えをおすすめします。ヒット時は Worker を実行せずに階層型の共有キャッシュから返し、期限切れのページは裏で再生成されます（ISR と同じ動き）。`wrangler.jsonc` の `"cache": { "enabled": true }` のコメントを外し、`vars.EDGE_CACHE` を `"none"` にします。Worker はそのためのヘッダー（`Cloudflare-CDN-Cache-Control`）を常に付けています。注意点: Workers Cache を有効にすると静的ファイルへのリクエストも Worker のリクエストとして課金されます。また、キャッシュのキーはパスとクエリ文字列そのもの（ホストは含まない）なので、`utm_*` などが付いたアクセスは別エントリになり、www や HTTP の転送はゾーンのルール（上記）で行う必要があります。
-- **画像**（`/wp-content/uploads/*`）は R2 から取得し、Cloudflare のキャッシュに 1 年間（404 は 1 日）保存します。
+- **画像**（`/wp-content/uploads/*`）は R2 バインディングで読み、Cache API でデータセンターごとに 1 年間（404 は 1 日）キャッシュします。キャッシュキーにデプロイのバージョンを含めないので、デプロイしても消えません。動画などの Range リクエストや If-None-Match には、キャッシュにあればキャッシュが、なければ R2 が応答します。
 
 ## 旧構成（Vercel + Next.js + TiDB + Prisma）からの変更点
 
@@ -179,6 +179,6 @@ D1 は読み取った行数で課金され、その分だけ時間もかかる�
 - **ページ**: 「アーカイブ作成中」だったカテゴリ・タグ・著者・検索（記事タイトル検索）ページを実装し、トップページを含めてページ送りを付けました。404 ページはサイトのレイアウト内に表示します。
 - **SEO**: `<html lang="ja">`、記事ごとの canonical・OGP・`article:published_time`・JSON-LD（NewsArticle）、検索結果ページの `noindex`、`robots.txt` を追加しました。サイトマップの生成スクリプトは `lastmod` も出力します（コミット済みのサイトマップには、`bun run sitemap` で再生成するまで `lastmod` はありません）。
 - **障害時**: DB に接続できないときは 503 とエラー画面を返し、エッジにはキャッシュしません。GET 以外のリクエストには 405 を返します。
-- **画像**: `/wp-content/uploads/*` のリサイズ用クエリ（`?w=…&h=…&crop=1`）は R2 では効かないため、プロキシ時に取り除いてキャッシュを共有します（表示される画像は従来どおり元サイズ）。R2 からの応答は必要なヘッダーだけを通し（Cookie などは捨てる）、CSP の `sandbox` を付けて、アップロードされたファイルがサイト上でスクリプトとして動かないようにしています。AdSense のスクリプトは広告枠のあるページでだけ読み込みます。
+- **画像**: `r2.techcrunchjapan.com` に転送していた `/wp-content/uploads/*`（Vercel のミドルウェア、のちに別の Worker）は、このアプリが R2 バインディングで直接配信します。リサイズ用クエリ（`?w=…&h=…&crop=1`）は無視して元サイズを返し（従来どおり）、キャッシュも共有します。CSP の `sandbox` を付けて、アップロードされたファイルがサイト上でスクリプトとして動かないようにしています。AdSense のスクリプトは広告枠のあるページでだけ読み込みます。
 - **その他の修正**: アイキャッチ画像がない記事で `src="null"` や `og:image` が壊れていた問題、トップページの著者リンク（`/author/` が抜けていた）、`className` に `false` が入る問題を修正しました。
 - 使われていなかった `/api/hello`・`/api/posts` と `ArticleSidebar` を削除しました。

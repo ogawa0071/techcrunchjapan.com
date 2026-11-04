@@ -5,7 +5,7 @@ import {
   canonicalPath,
   canonicalSearch,
   isFileLike,
-  uploadUrl,
+  uploadKey,
 } from './urls'
 
 describe('canonicalPath', () => {
@@ -58,21 +58,23 @@ describe('isFileLike', () => {
 const pathOf = (raw: string) =>
   new URL(`https://techcrunchjapan.com${raw}`).pathname
 
-describe('uploadUrl', () => {
-  const origin = 'https://r2.techcrunchjapan.com/'
-
-  it('maps uploads to the bucket and drops resize parameters', () => {
-    expect(
-      uploadUrl(pathOf('/wp-content/uploads/2022/03/a.jpg'), origin).toString(),
-    ).toBe('https://r2.techcrunchjapan.com/2022/03/a.jpg')
-  })
-
+describe('uploadKey', () => {
   it.each([
-    '/wp-content/uploads///evil.com/x.png',
-    '/wp-content/uploads//\\evil.com/x.png',
-  ])('never leaves the bucket host (%s)', (raw) => {
-    expect(uploadUrl(pathOf(raw), origin).host).toBe('r2.techcrunchjapan.com')
+    ['/wp-content/uploads/2022/03/a.jpg', '2022/03/a.jpg'],
+    ['/wp-content/uploads/2022/03/画像 1+2.jpg', '2022/03/画像 1+2.jpg'],
+    ['/wp-content/uploads/2022/03/%E7%94%BB%E5%83%8F.jpg', '2022/03/画像.jpg'],
+    ['/wp-content/uploads///2022/03/a.jpg', '2022/03/a.jpg'],
+    ['/wp-content/uploads//\\2022/03/a.jpg', '2022/03/a.jpg'],
+  ])('maps %s to the object %s', (raw, key) => {
+    expect(uploadKey(pathOf(raw))).toBe(key)
   })
+
+  it.each(['/wp-content/uploads/', '/wp-content/uploads/%E3%81.jpg'])(
+    'has no object for %s',
+    (raw) => {
+      expect(uploadKey(pathOf(raw))).toBeUndefined()
+    },
+  )
 })
 
 const search = (query: string, path = '/') =>
