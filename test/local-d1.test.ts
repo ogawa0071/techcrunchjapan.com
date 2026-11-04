@@ -38,7 +38,8 @@ async function touchLocalD1(configPath: string, state: string) {
   }
 }
 
-describe('localD1File', () => {
+// Each test starts workerd, which can take seconds on a busy machine.
+describe('localD1File', { timeout: 30_000 }, () => {
   it('names the file of wrangler.jsonc like wrangler', async () => {
     const state = join(dir, 'project')
     await touchLocalD1(CONFIG, state)
