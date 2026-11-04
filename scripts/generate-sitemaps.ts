@@ -2,27 +2,24 @@
  * Regenerates the static sitemaps (`public/sitemap.xml` + one `public/<year>.xml` per year)
  * from the database. The archive is frozen, so they are committed as static assets.
  *
- *   DATABASE_URL=postgresql://... bun run sitemap
+ *   bun run sitemap              # from the local D1 database (.wrangler/state)
+ *   bun run sitemap --remote     # from the production database
  *   SITEMAP_OUT_DIR=/tmp/sitemaps bun run sitemap   # write somewhere else
  */
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { and, desc, gte, lt, max, min } from 'drizzle-orm'
-import { drizzle } from 'drizzle-orm/node-postgres'
-import { Client } from 'pg'
 
 import { posts } from '../src/db/schema'
 import { datePath, startOfJstYear } from '../src/lib/date'
 import { postPath } from '../src/lib/paths'
 import { SITE_ORIGIN } from '../src/lib/site'
+import { connectD1 } from './lib/d1'
 
 const MAX_URLS_PER_SITEMAP = 50_000
 
 const outDir = process.env.SITEMAP_OUT_DIR ?? 'public'
-const databaseUrl = process.env.DATABASE_URL
-if (!databaseUrl)
-  throw new Error('Environment variable DATABASE_URL is required')
 
 const escapeXml = (value: string) =>
   value
@@ -34,12 +31,10 @@ const escapeXml = (value: string) =>
 
 const jstYear = (date: Date) => Number(datePath(date).slice(1, 5))
 
-const client = new Client({ connectionString: databaseUrl })
-client.on('error', () => {}) // reported through the failing query
-await client.connect()
-const db = drizzle({ client })
+const { db, target, close } = await connectD1()
 
 try {
+  console.log(`Reading the ${target}`)
   const [range] = await db
     .select({ first: min(posts.createdAt), last: max(posts.createdAt) })
     .from(posts)
@@ -62,7 +57,7 @@ try {
           lt(posts.createdAt, startOfJstYear(year + 1)),
         ),
       )
-      .orderBy(desc(posts.createdAt))
+      .orderBy(desc(posts.createdAt), desc(posts.id))
     if (rows.length === 0) continue
     if (rows.length > MAX_URLS_PER_SITEMAP) {
       throw new Error(
@@ -95,5 +90,5 @@ try {
   )
   console.log(`sitemap.xml: ${index.length} sitemaps → ${outDir}`)
 } finally {
-  await client.end()
+  await close()
 }

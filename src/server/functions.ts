@@ -21,7 +21,7 @@ function toPage(value: unknown): number {
   return page
 }
 
-/** PostgreSQL text cannot hold NUL characters. */
+/** NUL characters are dropped: SQLite's string functions stop at them. */
 function toText(value: unknown, maxLength = 1000): string {
   return typeof value === 'string'
     ? value.replaceAll('\0', '').slice(0, maxLength)

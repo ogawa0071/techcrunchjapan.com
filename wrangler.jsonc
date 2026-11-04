@@ -3,14 +3,14 @@
   "name": "techcrunchjapan",
   // Custom entry wrapping @tanstack/react-start/server-entry (redirects, media proxy, edge cache).
   "main": "src/server.ts",
-  // Node.js compatibility (needed by `pg`) is on by default for dates >= 2026-08-04.
-  // Dates >= 2026-11-17 switch on the new module registry and Request.signal: re-test
-  // before moving past that.
+  // Node.js compatibility (TanStack Start uses node:async_hooks) is on by default for dates
+  // >= 2026-08-04. Dates >= 2026-11-17 switch on the new module registry and
+  // Request.signal: re-test before moving past that.
   "compatibility_date": "2026-11-01",
   "observability": { "enabled": true },
 
-  // The Worker has no secrets. Declaring none keeps the variables in .env (DATABASE_URL,
-  // SOURCE_DATABASE_URL for the scripts) out of the Worker env, `wrangler types` and dist/.
+  // The Worker has no secrets. Declaring none keeps the variables in .env (credentials of
+  // the scripts, e.g. SOURCE_DATABASE_URL) out of the Worker env, `wrangler types` and dist/.
   "secrets": { "required": [] },
 
   "vars": {
@@ -24,16 +24,19 @@
   // The deployed version id is part of the Cache API key (see src/server.ts).
   "version_metadata": { "binding": "CF_VERSION_METADATA" },
 
-  // Neon via Hyperdrive (connection pooling and query caching close to the database).
-  // Create it once with the direct (non-pooled) Neon connection string:
-  //   bunx wrangler hyperdrive create techcrunchjapan --max-age=3600 --connection-string="postgresql://..."
-  // and paste the returned id below. Local development connects to `localConnectionString`
-  // or to CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE (e.g. in .env).
-  "hyperdrive": [
+  // Cloudflare D1 (SQLite). Create the database once, close to the readers:
+  //   bunx wrangler d1 create techcrunchjapan --location apac
+  // and paste the returned database_id below. `bun run dev` and the db:* scripts use a
+  // local copy under .wrangler/state; the scripts reach this database with --remote.
+  // Migrations: drizzle-kit writes one folder per migration (drizzle/<timestamp>_<name>/
+  // migration.sql); `bun run db:migrate` applies them with `wrangler d1 migrations apply`.
+  "d1_databases": [
     {
-      "binding": "HYPERDRIVE",
-      "id": "00000000000000000000000000000000",
-      "localConnectionString": "postgres://postgres:postgres@localhost:5432/techcrunchjapan",
+      "binding": "DB",
+      "database_name": "techcrunchjapan",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "drizzle",
+      "migrations_pattern": "drizzle/*/migration.sql",
     },
   ],
 
@@ -41,9 +44,6 @@
   // the Cloudflare-CDN-Cache-Control headers the Worker sends. Every request (static assets
   // included) is then billed as a Worker request. Set EDGE_CACHE to "none" when enabling it.
   // "cache": { "enabled": true },
-
-  // Run cache misses next to the database (Neon in AWS Tokyo).
-  // "placement": { "region": "aws:ap-northeast-1" },
 
   // Production domain, once ready to switch over from Vercel (remove Vercel's DNS records
   // first; redirect www with a zone Redirect Rule). Set "workers_dev" to false then.

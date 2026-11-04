@@ -1,31 +1,48 @@
 /**
- * One-off data migration: TiDB (MySQL, old Prisma schema) → Neon (PostgreSQL, Drizzle schema).
+ * One-off data migration: TiDB (MySQL, old Prisma schema) → Cloudflare D1 (Drizzle schema).
  *
- *   1. Create the tables:   DATABASE_URL=... bun run db:migrate
- *   2. Copy the data:       SOURCE_DATABASE_URL=mysql://... DATABASE_URL=postgresql://... bun run db:copy-from-tidb
+ *   1. Create the tables:  bun run db:migrate [--remote]
+ *   2. Copy the data:      SOURCE_DATABASE_URL=mysql://... bun run db:copy-from-tidb [--remote]
  *
- * - Rows are upserted by primary key and only changed rows are rewritten, so the script
- *   can be re-run safely (e.g. after an interruption). Each batch is one transaction.
+ * Without --remote, the local database of `bun run dev` (.wrangler/state) is filled; with
+ * --remote, the production database of wrangler.jsonc (see scripts/lib/d1.ts).
+ *
+ * - Each batch of posts is written together with its category / tag links by one D1 batch,
+ *   which D1 runs as a transaction. Values are bound as parameters (SQL text is limited to
+ *   100 KB per statement, article HTML can be longer).
+ * - Rows are upserted by primary key and only changed rows are rewritten (D1 bills rows
+ *   written), so the script can be re-run safely, e.g. after an interruption.
  * - `posts.excerpt` (plain-text lead used for listings and meta descriptions) is computed
- *   here, which is why the app itself no longer needs an HTML parser (formerly jsdom).
- * - The run fails (exit code 1) when the copied row counts differ from the expected ones.
+ *   here, which is why the app itself needs no HTML parser (formerly jsdom), and so is
+ *   `posts.search_title` (the title as compared by the search).
+ * - D1 rows are limited to 2 MB: larger posts (and their links) are skipped and reported.
+ * - The run fails (exit code 1) when posts were skipped or the copied row counts differ
+ *   from the expected ones.
  *
- * Environment: SOURCE_DATABASE_URL, DATABASE_URL, BATCH_SIZE (posts per batch, default 500).
+ * Environment: SOURCE_DATABASE_URL, BATCH_SIZE (posts per batch, default 100).
  */
-import { getTableColumns, getTableName, sql } from 'drizzle-orm'
-import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
-import type { PgColumn, PgTable } from 'drizzle-orm/pg-core'
+import { count, getTableColumns, getTableName, sql } from 'drizzle-orm'
+import type { BatchItem } from 'drizzle-orm/batch'
+import type { DrizzleD1Database } from 'drizzle-orm/d1'
+import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core'
 import mysql, { type RowDataPacket } from 'mysql2/promise'
-import { Client } from 'pg'
 
 import * as schema from '../src/db/schema'
+import { toSearchText } from '../src/lib/search'
+import { connectD1, type D1Connection } from './lib/d1'
 import { describeError } from './lib/errors'
 import { toExcerpt } from './lib/excerpt'
 
-/** The posts insert binds 9 parameters per row; PostgreSQL allows 65,535 per statement. */
-const MAX_BATCH_SIZE = Math.floor(65_535 / 9)
-/** Link rows bind 2 parameters each. */
-const LINK_CHUNK_SIZE = 10_000
+/** D1 binds at most 100 parameters per statement. */
+const MAX_PARAMS = 100
+/** D1 limits every string, BLOB and row to 2,000,000 bytes. */
+const MAX_ROW_BYTES = 2_000_000
+/** Approximate bound on the values sent with one D1 batch (one request with --remote). */
+const MAX_BATCH_BYTES = 4_000_000
+const MAX_BATCH_SIZE = 1_000
+
+type Db = DrizzleD1Database
+type Statement = BatchItem<'sqlite'>
 
 interface SourceTerm extends RowDataPacket {
   id: number
@@ -45,6 +62,11 @@ interface SourcePost extends RowDataPacket {
   featuredMediaUrl: string | null
 }
 
+interface SourceLink extends RowDataPacket {
+  postId: number
+  termId: number
+}
+
 interface SourceCount extends RowDataPacket {
   /** COUNT(*) is a BIGINT, which mysql2 may return as a string. */
   count: number | string
@@ -58,7 +80,7 @@ function requireEnv(name: string): string {
 
 function batchSize(): number {
   const raw = process.env.BATCH_SIZE
-  if (!raw) return 500
+  if (!raw) return 100
   const size = Number(raw)
   if (!Number.isInteger(size) || size < 1 || size > MAX_BATCH_SIZE) {
     throw new Error(`BATCH_SIZE must be an integer from 1 to ${MAX_BATCH_SIZE}`)
@@ -98,18 +120,22 @@ async function countSourceRows(
   return Number(rows[0]?.count ?? 0)
 }
 
-/** PostgreSQL text cannot contain NUL characters. */
+/** NUL characters are dropped, as before: SQLite's string functions stop at them. */
 const clean = (value: string) => value.replaceAll('\0', '')
 const cleanNullable = (value: string | null) =>
   value === null ? null : clean(value)
 
+const byteLength = (value: string | null) =>
+  value === null ? 0 : Buffer.byteLength(value)
+
 /**
- * `ON CONFLICT DO UPDATE` that only rewrites rows whose values changed, so re-runs do not
- * duplicate every row version (and its TOASTed HTML) in PostgreSQL.
+ * `ON CONFLICT DO UPDATE` that only rewrites rows whose values changed: re-runs then
+ * write (and are billed for) changed rows only.
  */
-function upsertChanged(table: PgTable, primaryKey: PgColumn) {
+function upsertChanged(table: SQLiteTable, primaryKey: SQLiteColumn[]) {
+  const keys = new Set(primaryKey.map((column) => column.name))
   const columns = Object.entries(getTableColumns(table)).filter(
-    ([, column]) => column.name !== primaryKey.name,
+    ([, column]) => !keys.has(column.name),
   )
   const current = columns
     .map(([, column]) => `"${getTableName(table)}"."${column.name}"`)
@@ -125,74 +151,130 @@ function upsertChanged(table: PgTable, primaryKey: PgColumn) {
         sql.raw(`excluded."${column.name}"`),
       ]),
     ),
-    setWhere: sql.raw(`(${current}) IS DISTINCT FROM (${incoming})`),
+    setWhere: sql.raw(`(${current}) IS NOT (${incoming})`),
   }
+}
+
+/** Rows per INSERT: D1 binds at most 100 parameters per statement. */
+function rowsPerStatement(table: SQLiteTable): number {
+  return Math.floor(MAX_PARAMS / Object.keys(getTableColumns(table)).length)
 }
 
 function* chunks<T>(items: T[], size: number): Generator<T[]> {
   for (let i = 0; i < items.length; i += size) yield items.slice(i, i + size)
 }
 
-type Db = NodePgDatabase<typeof schema>
+/** Groups consecutive items into chunks of at most `maxCount` items and `maxBytes` bytes. */
+function* chunksBySize<T>(
+  items: T[],
+  maxCount: number,
+  maxBytes: number,
+  size: (item: T) => number,
+): Generator<T[]> {
+  let chunk: T[] = []
+  let bytes = 0
+  for (const item of items) {
+    const itemBytes = size(item)
+    if (
+      chunk.length > 0 &&
+      (chunk.length >= maxCount || bytes + itemBytes > maxBytes)
+    ) {
+      yield chunk
+      chunk = []
+      bytes = 0
+    }
+    chunk.push(item)
+    bytes += itemBytes
+  }
+  if (chunk.length > 0) yield chunk
+}
+
+interface SizedStatement {
+  statement: Statement
+  bytes: number
+}
+
+/**
+ * Runs the statements in order, in as few D1 batches as the size bound allows. A batch is
+ * a transaction; a failure leaves the earlier batches applied, which re-runs repair.
+ */
+async function runInBatches(db: Db, statements: SizedStatement[]) {
+  for (const group of chunksBySize(
+    statements,
+    Number.POSITIVE_INFINITY,
+    MAX_BATCH_BYTES,
+    (item) => item.bytes,
+  )) {
+    const [first, ...rest] = group.map((item) => item.statement)
+    if (first) await db.batch([first, ...rest])
+  }
+}
 
 async function copyTerms(
   source: mysql.Connection,
   db: Db,
   from: string,
   to: typeof schema.authors | typeof schema.categories | typeof schema.tags,
-  size: number,
 ): Promise<Set<number>> {
   const [rows] = await source.query<SourceTerm[]>(
     `SELECT id, slug, name, description FROM \`${from}\` ORDER BY id`,
   )
-  for (const chunk of chunks(rows, size)) {
-    await db
-      .insert(to)
-      .values(
-        chunk.map((row) => ({
-          id: row.id,
-          slug: clean(row.slug),
-          name: clean(row.name),
-          description: cleanNullable(row.description),
-        })),
-      )
-      .onConflictDoUpdate(upsertChanged(to, to.id))
+  const values = rows.map((row) => ({
+    id: row.id,
+    slug: clean(row.slug),
+    name: clean(row.name),
+    description: cleanNullable(row.description),
+  }))
+  const statements: SizedStatement[] = []
+  for (const chunk of chunks(values, rowsPerStatement(to))) {
+    statements.push({
+      statement: db
+        .insert(to)
+        .values(chunk)
+        .onConflictDoUpdate(upsertChanged(to, [to.id])),
+      bytes: chunk.reduce(
+        (sum, row) =>
+          sum +
+          byteLength(row.slug) +
+          byteLength(row.name) +
+          byteLength(row.description),
+        0,
+      ),
+    })
   }
+  await runInBatches(db, statements)
   console.log(`${from} → ${getTableName(to)}: ${rows.length} rows`)
   return new Set(rows.map((row) => row.id))
+}
+
+interface Link {
+  postId: number
+  termId: number
 }
 
 async function main() {
   const size = batchSize()
   const sourceUrl = requireEnv('SOURCE_DATABASE_URL')
-  const client = new Client({ connectionString: requireEnv('DATABASE_URL') })
-  // A dropped connection fails the running query anyway; avoid a second, raw report.
-  client.on('error', () => {})
+  let target: D1Connection | undefined
   let source: mysql.Connection | undefined
   try {
-    await client.connect()
+    target = await connectD1()
     source = await mysql.createConnection(mysqlOptions(sourceUrl))
-    await copy(source, client, size)
+    console.log(`Copying to the ${target.target}`)
+    await copy(source, target.db, size)
   } finally {
     await source?.end().catch(() => {})
-    await client.end().catch(() => {})
+    await target?.close().catch(() => {})
   }
 }
 
-async function copy(source: mysql.Connection, client: Client, size: number) {
-  const db = drizzle({ client, schema })
+async function copy(source: mysql.Connection, db: Db, size: number) {
   const started = performance.now()
 
   // --- authors / categories / tags (small tables) ----------------------------------------
-  const authorIds = await copyTerms(source, db, 'User', schema.authors, size)
-  const categoryIds = await copyTerms(
-    source,
-    db,
-    'Category',
-    schema.categories,
-    size,
-  )
-  const tagIds = await copyTerms(source, db, 'Tag', schema.tags, size)
+  const authorIds = await copyTerms(source, db, 'User', schema.authors)
+  const categoryIds = await copyTerms(source, db, 'Category', schema.categories)
+  const tagIds = await copyTerms(source, db, 'Tag', schema.tags)
 
   // --- posts and their category / tag links, keyset-paginated by id -----------------------
   const totalPosts = await countSourceRows(
@@ -200,7 +282,15 @@ async function copy(source: mysql.Connection, client: Client, size: number) {
     'SELECT COUNT(*) AS count FROM `Post`',
   )
   const placeholderAuthors: number[] = []
-  const skipped = { categoryLinks: 0, tagLinks: 0 }
+  const oversized: { id: number; bytes: number }[] = []
+  const skipped = {
+    categoryLinks: 0,
+    tagLinks: 0,
+    oversizedCategoryLinks: 0,
+    oversizedTagLinks: 0,
+  }
+  const postRows = rowsPerStatement(schema.posts)
+  const linkRows = rowsPerStatement(schema.postCategories)
   let copiedPosts = 0
   let lastId = 0
   for (;;) {
@@ -210,78 +300,151 @@ async function copy(source: mysql.Connection, client: Client, size: number) {
     )
     if (rows.length === 0) break
     const postIds = rows.map((row) => row.id)
-    const [categoryLinks] = await source.query<RowDataPacket[]>(
-      'SELECT postId, categoryId FROM `CategoriesOnPosts` WHERE postId IN (?)',
+    const [categoryLinks] = await source.query<SourceLink[]>(
+      'SELECT postId, categoryId AS termId FROM `CategoriesOnPosts` WHERE postId IN (?) ORDER BY postId, categoryId',
       [postIds],
     )
-    const [tagLinks] = await source.query<RowDataPacket[]>(
-      'SELECT postId, tagId FROM `TagsOnPosts` WHERE postId IN (?)',
+    const [tagLinks] = await source.query<SourceLink[]>(
+      'SELECT postId, tagId AS termId FROM `TagsOnPosts` WHERE postId IN (?) ORDER BY postId, tagId',
       [postIds],
     )
+
+    const posts = rows.map((row) => ({
+      id: row.id,
+      slug: clean(row.slug),
+      title: clean(row.title),
+      searchTitle: toSearchText(clean(row.title)),
+      content: clean(row.content),
+      excerpt: clean(toExcerpt(row.content)),
+      featuredMediaUrl: cleanNullable(row.featuredMediaUrl),
+      authorId: row.authorId,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    }))
+    const postBytes = (post: (typeof posts)[number]) =>
+      byteLength(post.slug) +
+      byteLength(post.title) +
+      byteLength(post.searchTitle) +
+      byteLength(post.content) +
+      byteLength(post.excerpt) +
+      byteLength(post.featuredMediaUrl) +
+      64 // numbers and the record header
+    const storable = posts.filter((post) => {
+      const bytes = postBytes(post)
+      if (bytes <= MAX_ROW_BYTES) return true
+      oversized.push({ id: post.id, bytes })
+      return false
+    })
+    const createdAt = new Map(storable.map((post) => [post.id, post.createdAt]))
 
     // The old schema did not always enforce foreign keys: authors may be missing, and
     // links may point to missing terms (those links are dropped and counted).
-    const missingAuthors = [...new Set(rows.map((row) => row.authorId))].filter(
-      (id) => !authorIds.has(id),
-    )
-    const validCategoryLinks = categoryLinks.filter((link) =>
-      categoryIds.has(link.categoryId),
-    )
-    const validTagLinks = tagLinks.filter((link) => tagIds.has(link.tagId))
-
-    try {
-      await db.transaction(async (tx) => {
-        if (missingAuthors.length > 0) {
-          await tx
-            .insert(schema.authors)
-            .values(
-              missingAuthors.map((id) => ({
-                id,
-                slug: `missing-author-${id}`,
-                name: `missing-author-${id}`,
-              })),
-            )
-            .onConflictDoNothing({ target: schema.authors.id })
+    const missingAuthors = [
+      ...new Set(storable.map((post) => post.authorId)),
+    ].filter((id) => !authorIds.has(id))
+    const links = (
+      found: SourceLink[],
+      termIds: Set<number>,
+      counts: 'categoryLinks' | 'tagLinks',
+    ): Link[] =>
+      found.filter((link) => {
+        if (!termIds.has(link.termId)) {
+          skipped[counts]++
+          return false
         }
-        await tx
-          .insert(schema.posts)
+        if (!createdAt.has(link.postId)) {
+          skipped[
+            counts === 'categoryLinks'
+              ? 'oversizedCategoryLinks'
+              : 'oversizedTagLinks'
+          ]++
+          return false
+        }
+        return true
+      })
+    const validCategoryLinks = links(
+      categoryLinks,
+      categoryIds,
+      'categoryLinks',
+    )
+    const validTagLinks = links(tagLinks, tagIds, 'tagLinks')
+
+    const statements: SizedStatement[] = []
+    for (const chunk of chunks(
+      missingAuthors,
+      rowsPerStatement(schema.authors),
+    )) {
+      statements.push({
+        statement: db
+          .insert(schema.authors)
           .values(
-            rows.map((row) => ({
-              id: row.id,
-              slug: clean(row.slug),
-              title: clean(row.title),
-              content: clean(row.content),
-              excerpt: clean(toExcerpt(row.content)),
-              featuredMediaUrl: cleanNullable(row.featuredMediaUrl),
-              authorId: row.authorId,
-              createdAt: row.createdAt,
-              updatedAt: row.updatedAt,
+            chunk.map((id) => ({
+              id,
+              slug: `missing-author-${id}`,
+              name: `missing-author-${id}`,
             })),
           )
-          .onConflictDoUpdate(upsertChanged(schema.posts, schema.posts.id))
-        for (const chunk of chunks(validCategoryLinks, LINK_CHUNK_SIZE)) {
-          await tx
-            .insert(schema.postCategories)
-            .values(
-              chunk.map((link) => ({
-                postId: link.postId,
-                categoryId: link.categoryId,
-              })),
-            )
-            .onConflictDoNothing()
-        }
-        for (const chunk of chunks(validTagLinks, LINK_CHUNK_SIZE)) {
-          await tx
-            .insert(schema.postTags)
-            .values(
-              chunk.map((link) => ({
-                postId: link.postId,
-                tagId: link.tagId,
-              })),
-            )
-            .onConflictDoNothing()
-        }
+          .onConflictDoNothing({ target: schema.authors.id }),
+        bytes: chunk.length * 64,
       })
+    }
+    for (const chunk of chunksBySize(
+      storable,
+      postRows,
+      MAX_ROW_BYTES,
+      postBytes,
+    )) {
+      statements.push({
+        statement: db
+          .insert(schema.posts)
+          .values(chunk)
+          .onConflictDoUpdate(upsertChanged(schema.posts, [schema.posts.id])),
+        bytes: chunk.reduce((sum, post) => sum + postBytes(post), 0),
+      })
+    }
+    for (const chunk of chunks(validCategoryLinks, linkRows)) {
+      statements.push({
+        statement: db
+          .insert(schema.postCategories)
+          .values(
+            chunk.map((link) => ({
+              postId: link.postId,
+              categoryId: link.termId,
+              postCreatedAt: createdAt.get(link.postId)!,
+            })),
+          )
+          .onConflictDoUpdate(
+            upsertChanged(schema.postCategories, [
+              schema.postCategories.postId,
+              schema.postCategories.categoryId,
+            ]),
+          ),
+        bytes: chunk.length * 24,
+      })
+    }
+    for (const chunk of chunks(validTagLinks, linkRows)) {
+      statements.push({
+        statement: db
+          .insert(schema.postTags)
+          .values(
+            chunk.map((link) => ({
+              postId: link.postId,
+              tagId: link.termId,
+              postCreatedAt: createdAt.get(link.postId)!,
+            })),
+          )
+          .onConflictDoUpdate(
+            upsertChanged(schema.postTags, [
+              schema.postTags.postId,
+              schema.postTags.tagId,
+            ]),
+          ),
+        bytes: chunk.length * 24,
+      })
+    }
+
+    try {
+      await runInBatches(db, statements)
     } catch (error) {
       throw new Error(
         `Copying posts ${postIds[0]}–${postIds.at(-1)} failed: ${describeError(error)}`,
@@ -293,8 +456,6 @@ async function copy(source: mysql.Connection, client: Client, size: number) {
       authorIds.add(id)
       placeholderAuthors.push(id)
     }
-    skipped.categoryLinks += categoryLinks.length - validCategoryLinks.length
-    skipped.tagLinks += tagLinks.length - validTagLinks.length
     copiedPosts += rows.length
     lastId = postIds.at(-1)!
     if (process.stdout.isTTY) {
@@ -304,20 +465,15 @@ async function copy(source: mysql.Connection, client: Client, size: number) {
     }
   }
   console.log(
-    `${process.stdout.isTTY ? '\n' : ''}Post → posts: ${copiedPosts} rows`,
+    `${process.stdout.isTTY ? '\n' : ''}Post → posts: ${copiedPosts - oversized.length} rows`,
   )
 
-  // --- housekeeping ---------------------------------------------------------------------
-  // Explicit ids were inserted into identity columns: move the sequences past them.
-  for (const table of ['authors', 'categories', 'tags', 'posts']) {
-    await db.execute(
-      sql.raw(
-        `SELECT setval(pg_get_serial_sequence('${table}', 'id'), COALESCE((SELECT MAX(id) FROM ${table}), 0) + 1, false)`,
-      ),
-    )
+  // Planner statistics for the new tables (not needed for correctness).
+  try {
+    await db.run(sql`PRAGMA optimize`)
+  } catch (error) {
+    console.warn(`PRAGMA optimize failed: ${describeError(error)}`)
   }
-  // Planner statistics, plus the visibility map that index-only scans (deep pages) rely on.
-  await db.execute(sql`VACUUM ANALYZE`)
 
   // --- verification ---------------------------------------------------------------------
   // Links whose post does not exist in the source are never selected above.
@@ -330,19 +486,26 @@ async function copy(source: mysql.Connection, client: Client, size: number) {
     'SELECT COUNT(*) AS count FROM `TagsOnPosts` l LEFT JOIN `Post` p ON p.id = l.postId WHERE p.id IS NULL',
   )
   const expected = [
-    { from: 'User', to: 'authors', adjust: placeholderAuthors.length },
-    { from: 'Category', to: 'categories', adjust: 0 },
-    { from: 'Tag', to: 'tags', adjust: 0 },
-    { from: 'Post', to: 'posts', adjust: 0 },
+    {
+      from: 'User',
+      to: schema.authors,
+      adjust: placeholderAuthors.length,
+    },
+    { from: 'Category', to: schema.categories, adjust: 0 },
+    { from: 'Tag', to: schema.tags, adjust: 0 },
+    { from: 'Post', to: schema.posts, adjust: -oversized.length },
     {
       from: 'CategoriesOnPosts',
-      to: 'post_categories',
-      adjust: -skipped.categoryLinks - orphanCategoryLinks,
+      to: schema.postCategories,
+      adjust:
+        -skipped.categoryLinks -
+        skipped.oversizedCategoryLinks -
+        orphanCategoryLinks,
     },
     {
       from: 'TagsOnPosts',
-      to: 'post_tags',
-      adjust: -skipped.tagLinks - orphanTagLinks,
+      to: schema.postTags,
+      adjust: -skipped.tagLinks - skipped.oversizedTagLinks - orphanTagLinks,
     },
   ]
   const report = []
@@ -351,13 +514,11 @@ async function copy(source: mysql.Connection, client: Client, size: number) {
       source,
       `SELECT COUNT(*) AS count FROM \`${from}\``,
     )
-    const { rows } = await client.query<{ count: number }>(
-      `SELECT COUNT(*)::int AS count FROM ${to}`,
-    )
-    const targetCount = rows[0]?.count ?? 0
+    const [row] = await db.select({ count: count() }).from(to)
+    const targetCount = row?.count ?? 0
     report.push({
       source: from,
-      target: to,
+      target: getTableName(to),
       sourceCount,
       expected: sourceCount + adjust,
       targetCount,
@@ -376,8 +537,14 @@ async function copy(source: mysql.Connection, client: Client, size: number) {
     'category links to missing posts': orphanCategoryLinks,
     'tag links to missing posts': orphanTagLinks,
   }
-  for (const [what, count] of Object.entries(dropped)) {
-    if (count > 0) console.warn(`Dropped ${count} ${what}`)
+  for (const [what, n] of Object.entries(dropped)) {
+    if (n > 0) console.warn(`Dropped ${n} ${what}`)
+  }
+  if (oversized.length > 0) {
+    console.error(
+      `Skipped ${oversized.length} posts larger than D1's row limit (${MAX_ROW_BYTES} bytes) and their ${skipped.oversizedCategoryLinks + skipped.oversizedTagLinks} links: ${oversized.map(({ id, bytes }) => `${id} (${bytes} bytes)`).join(', ')}`,
+    )
+    process.exitCode = 1
   }
   if (report.some((row) => !row.ok)) {
     console.error(

@@ -1,5 +1,5 @@
-import { and, desc, eq, ilike, inArray, sql, type SQL } from 'drizzle-orm'
-import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
+import { and, desc, eq, inArray, sql, type SQL } from 'drizzle-orm'
+import type { DrizzleD1Database } from 'drizzle-orm/d1'
 
 import {
   authors,
@@ -9,15 +9,48 @@ import {
   postTags,
   tags,
 } from '../db/schema'
-import type { CategoryRef, PostDetail, PostPage, TermPostPage } from './types'
+import { searchWords } from '../lib/search'
+import type {
+  CategoryRef,
+  PostDetail,
+  PostPage,
+  PostSummary,
+  Term,
+  TermPostPage,
+} from './types'
 
-export type Database = PgDatabase<PgQueryResultHKT>
+export type Database = DrizzleD1Database
 
 export const PAGE_SIZE = 20
 
 /** Width of the slug column in the old MySQL schema (Prisma's VARCHAR(191)); longer slugs were cut. */
 const LEGACY_SLUG_LENGTH = 191
 
+/** The JSON array built by `categoriesJson`. */
+function parseCategories(value: unknown): CategoryRef[] {
+  if (typeof value !== 'string') return []
+  const list: CategoryRef[] = JSON.parse(value)
+  return list
+}
+
+/**
+ * The categories of each post as a JSON array (ordered by id), so that a page is one
+ * statement (one round trip to D1). SQLite evaluates it only for the returned rows.
+ */
+const categoriesJson = sql`(
+  SELECT json_group_array(
+    json_object('id', ${categories.id}, 'slug', ${categories.slug}, 'name', ${categories.name})
+    ORDER BY ${categories.id}
+  )
+  FROM ${postCategories}
+  INNER JOIN ${categories} ON ${categories.id} = ${postCategories.categoryId}
+  WHERE ${postCategories.postId} = ${posts.id}
+)`
+  .mapWith(parseCategories)
+  .as('categories')
+
+// Results of db.batch() are keyed by column name, so names that repeat (slug, name) are
+// aliased.
 const summaryColumns = {
   id: posts.id,
   slug: posts.slug,
@@ -25,42 +58,10 @@ const summaryColumns = {
   excerpt: posts.excerpt,
   featuredMediaUrl: posts.featuredMediaUrl,
   createdAt: posts.createdAt,
-  author: { slug: authors.slug, name: authors.name },
-}
-
-/**
- * Adds the categories of each post with one more query (no N+1). Plain joins rather than
- * json_agg(): Hyperdrive caches only queries free of STABLE/VOLATILE functions.
- */
-async function withCategories<T extends { id: number }>(
-  db: Database,
-  rows: T[],
-): Promise<(T & { categories: CategoryRef[] })[]> {
-  if (rows.length === 0) return []
-  const links = await db
-    .select({
-      postId: postCategories.postId,
-      id: categories.id,
-      slug: categories.slug,
-      name: categories.name,
-    })
-    .from(postCategories)
-    .innerJoin(categories, eq(categories.id, postCategories.categoryId))
-    .where(
-      inArray(
-        postCategories.postId,
-        rows.map((row) => row.id),
-      ),
-    )
-    .orderBy(postCategories.postId, categories.id)
-
-  const byPost = new Map<number, CategoryRef[]>()
-  for (const { postId, ...category } of links) {
-    const list = byPost.get(postId)
-    if (list) list.push(category)
-    else byPost.set(postId, [category])
-  }
-  return rows.map((row) => ({ ...row, categories: byPost.get(row.id) ?? [] }))
+  author: {
+    slug: authors.slug.as('author_slug'),
+    name: authors.name.as('author_name'),
+  },
 }
 
 const newestFirst = [desc(posts.createdAt), desc(posts.id)]
@@ -77,71 +78,113 @@ function slugCandidates(slug: string): string[] {
 
 type PostFilter =
   | { kind: 'all' }
-  | { kind: 'category'; id: number }
-  | { kind: 'tag'; id: number }
-  | { kind: 'author'; id: number }
+  | { kind: 'category'; slug: string }
+  | { kind: 'tag'; slug: string }
+  | { kind: 'author'; slug: string }
   | { kind: 'title'; words: string[] }
 
-const escapeLike = (value: string) =>
-  value.replace(/[\\%_]/g, (char) => `\\${char}`)
-
 /**
- * One page of article summaries, newest first.
- *
- * The page of ids is selected first and only those rows are joined/aggregated:
- * PostgreSQL evaluates select-list subqueries for rows skipped by OFFSET too,
- * which made deep pages several seconds slow.
+ * Ids of one page of posts (plus one, which tells whether a next page exists), newest
+ * first. Every variant reads an index in order and stops after the page:
+ * posts (created_at, id, search_title), posts (author_id, created_at, id), and the link
+ * tables' (term id, post_created_at, post_id).
  */
-async function listPosts(
-  db: Database,
-  filter: PostFilter,
-  page: number,
-): Promise<PostPage> {
-  let ids = db.select({ id: posts.id }).from(posts).$dynamic()
-  let where: SQL | undefined
-  switch (filter.kind) {
-    case 'category':
-      ids = ids.innerJoin(postCategories, eq(postCategories.postId, posts.id))
-      where = eq(postCategories.categoryId, filter.id)
-      break
-    case 'tag':
-      ids = ids.innerJoin(postTags, eq(postTags.postId, posts.id))
-      where = eq(postTags.tagId, filter.id)
-      break
-    case 'author':
-      where = eq(posts.authorId, filter.id)
-      break
-    case 'title':
-      where = and(
-        ...filter.words.map((word) =>
-          ilike(posts.title, `%${escapeLike(word)}%`),
+function pageIds(db: Database, filter: PostFilter, page: number) {
+  const limit = PAGE_SIZE + 1
+  const offset = (page - 1) * PAGE_SIZE
+  if (filter.kind === 'category') {
+    return db
+      .select({ id: postCategories.postId })
+      .from(postCategories)
+      .where(
+        eq(
+          postCategories.categoryId,
+          db
+            .select({ id: categories.id })
+            .from(categories)
+            .where(eq(categories.slug, filter.slug)),
         ),
       )
-      break
+      .orderBy(desc(postCategories.postCreatedAt), desc(postCategories.postId))
+      .limit(limit)
+      .offset(offset)
   }
-  const pageIds = ids
+  if (filter.kind === 'tag') {
+    return db
+      .select({ id: postTags.postId })
+      .from(postTags)
+      .where(
+        eq(
+          postTags.tagId,
+          db
+            .select({ id: tags.id })
+            .from(tags)
+            .where(eq(tags.slug, filter.slug)),
+        ),
+      )
+      .orderBy(desc(postTags.postCreatedAt), desc(postTags.postId))
+      .limit(limit)
+      .offset(offset)
+  }
+  let where: SQL | undefined
+  if (filter.kind === 'author') {
+    where = eq(
+      posts.authorId,
+      db
+        .select({ id: authors.id })
+        .from(authors)
+        .where(eq(authors.slug, filter.slug)),
+    )
+  } else if (filter.kind === 'title') {
+    // instr() rather than LIKE: D1 limits LIKE patterns to 50 bytes (about 16 Japanese
+    // characters), and no wildcard escaping is needed. Both sides are in search form
+    // (lib/search.ts), as SQLite only folds the case of ASCII letters.
+    where = and(
+      ...filter.words.map(
+        (word) => sql`instr(${posts.searchTitle}, ${word}) > 0`,
+      ),
+    )
+  }
+  return db
+    .select({ id: posts.id })
+    .from(posts)
     .where(where)
     .orderBy(...newestFirst)
-    .limit(PAGE_SIZE + 1) // one extra row tells whether a next page exists
-    .offset((page - 1) * PAGE_SIZE)
-    .as('page_ids')
+    .limit(limit)
+    .offset(offset)
+}
 
-  const rows = await db
-    .select(summaryColumns)
-    .from(pageIds)
-    .innerJoin(posts, eq(posts.id, pageIds.id))
-    .innerJoin(authors, eq(authors.id, posts.authorId))
+/**
+ * One page of article summaries, newest first, as a single statement.
+ *
+ * CROSS JOIN fixes SQLite's join order, so the page of ids drives the lookups: with
+ * INNER JOINs the planner may instead walk every post in date order (to skip sorting
+ * 21 rows) and read the whole table.
+ */
+function listPosts(db: Database, filter: PostFilter, page: number) {
+  const ids = pageIds(db, filter, page).as('page_ids')
+  return db
+    .select({ ...summaryColumns, categories: categoriesJson })
+    .from(ids)
+    .crossJoin(posts)
+    .crossJoin(authors)
+    .where(and(eq(posts.id, ids.id), eq(authors.id, posts.authorId)))
     .orderBy(...newestFirst)
+}
 
+function toPostPage(rows: PostSummary[], page: number): PostPage {
   return {
-    posts: await withCategories(db, rows.slice(0, PAGE_SIZE)),
+    posts: rows.slice(0, PAGE_SIZE),
     page,
     hasNextPage: rows.length > PAGE_SIZE,
   }
 }
 
-export function getLatestPosts(db: Database, page: number): Promise<PostPage> {
-  return listPosts(db, { kind: 'all' }, page)
+export async function getLatestPosts(
+  db: Database,
+  page: number,
+): Promise<PostPage> {
+  return toPostPage(await listPosts(db, { kind: 'all' }, page), page)
 }
 
 /**
@@ -157,15 +200,14 @@ export async function getPostBySlug(
       ...summaryColumns,
       content: posts.content,
       updatedAt: posts.updatedAt,
+      categories: categoriesJson,
     })
     .from(posts)
     .innerJoin(authors, eq(authors.id, posts.authorId))
     .where(inArray(posts.slug, slugCandidates(slug)))
     .orderBy(desc(sql`length(${posts.slug})`))
     .limit(1)
-  if (!post) return undefined
-  const [withCats] = await withCategories(db, [post])
-  return withCats
+  return post
 }
 
 export interface PostLocation {
@@ -198,75 +240,67 @@ export async function getPostLocationBySlug(
   return post
 }
 
-export async function getCategoryPosts(
+type TermTable = typeof categories | typeof tags | typeof authors
+
+/**
+ * A category, tag or author page: the term and its page of posts in one round trip
+ * (db.batch). `undefined` when the term does not exist.
+ */
+async function getTermPosts(
+  db: Database,
+  table: TermTable,
+  filter: Extract<PostFilter, { slug: string }>,
+  page: number,
+): Promise<TermPostPage | undefined> {
+  const [terms, rows] = await db.batch([
+    db
+      .select({
+        slug: table.slug,
+        name: table.name,
+        description: table.description,
+      })
+      .from(table)
+      .where(eq(table.slug, filter.slug))
+      .limit(1),
+    listPosts(db, filter, page),
+  ])
+  const term: Term | undefined = terms[0]
+  return term ? { ...toPostPage(rows, page), term } : undefined
+}
+
+export function getCategoryPosts(
   db: Database,
   slug: string,
   page: number,
 ): Promise<TermPostPage | undefined> {
-  const [term] = await db
-    .select({
-      id: categories.id,
-      slug: categories.slug,
-      name: categories.name,
-      description: categories.description,
-    })
-    .from(categories)
-    .where(eq(categories.slug, slug))
-    .limit(1)
-  if (!term) return undefined
-  const { id, ...rest } = term
-  return {
-    ...(await listPosts(db, { kind: 'category', id }, page)),
-    term: rest,
-  }
+  return getTermPosts(db, categories, { kind: 'category', slug }, page)
 }
 
-export async function getTagPosts(
+export function getTagPosts(
   db: Database,
   slug: string,
   page: number,
 ): Promise<TermPostPage | undefined> {
-  const [term] = await db
-    .select({
-      id: tags.id,
-      slug: tags.slug,
-      name: tags.name,
-      description: tags.description,
-    })
-    .from(tags)
-    .where(eq(tags.slug, slug))
-    .limit(1)
-  if (!term) return undefined
-  const { id, ...rest } = term
-  return { ...(await listPosts(db, { kind: 'tag', id }, page)), term: rest }
+  return getTermPosts(db, tags, { kind: 'tag', slug }, page)
 }
 
-export async function getAuthorPosts(
+export function getAuthorPosts(
   db: Database,
   slug: string,
   page: number,
 ): Promise<TermPostPage | undefined> {
-  const [term] = await db
-    .select({
-      id: authors.id,
-      slug: authors.slug,
-      name: authors.name,
-      description: authors.description,
-    })
-    .from(authors)
-    .where(eq(authors.slug, slug))
-    .limit(1)
-  if (!term) return undefined
-  const { id, ...rest } = term
-  return { ...(await listPosts(db, { kind: 'author', id }, page)), term: rest }
+  return getTermPosts(db, authors, { kind: 'author', slug }, page)
 }
 
-/** Title search; every whitespace-separated word must match (case-insensitive). */
-export function searchPosts(
+/**
+ * Title search: every whitespace-separated word must appear, ignoring case and
+ * full-width / half-width differences.
+ */
+export async function searchPosts(
   db: Database,
   query: string,
   page: number,
 ): Promise<PostPage> {
-  const words = query.split(/\s+/).filter(Boolean).slice(0, 5)
-  return listPosts(db, { kind: 'title', words }, page)
+  const words = searchWords(query)
+  return toPostPage(await listPosts(db, { kind: 'title', words }, page), page)
 }
