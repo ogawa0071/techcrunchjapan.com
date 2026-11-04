@@ -137,7 +137,7 @@ bun run dev
 
 9. 動作を確認したら、TiDB のクラスタを削除します。D1 は Time Travel で過去 30 日の任意の時点に戻せます（`bunx wrangler d1 time-travel`）。
 
-Git 連携の [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/) を使う場合は、ビルドコマンドを `bun run build`、デプロイコマンドを `bunx wrangler deploy` にします（Bun のバージョンは `package.json` の `packageManager` で固定しています）。main 以外のブランチのビルドは既定で `npx wrangler preview` を実行しますが、Preview にはバインディングが引き継がれないため、そのコマンドを `bunx wrangler versions upload` に変えるか、main 以外のビルドを無効にしてください。
+Git 連携の [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/) を使う場合は、ビルドコマンドを `bun run build`、デプロイコマンドを `bunx wrangler deploy` にします（Bun のバージョンは `package.json` の `packageManager` で固定しています）。main 以外のブランチのビルドは既定で `npx wrangler preview` で Preview を作ります。Preview は本番と同じ D1・レート制限・変数を使います（`vite.config.ts` で本番の設定を `previews` にコピーしています）。
 
 ### プラン
 
