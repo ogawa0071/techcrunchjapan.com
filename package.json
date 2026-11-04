@@ -17,10 +17,9 @@
     "check": "bun run typecheck && bun run lint && bun run fmt:check && bun run test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "wrangler d1 migrations apply DB",
-    "db:studio": "drizzle-kit studio",
-    "db:studio:remote": "DRIZZLE_REMOTE=1 drizzle-kit studio",
-    "db:copy-from-tidb": "bun scripts/migrate-from-tidb.ts",
-    "sitemap": "bun scripts/generate-sitemaps.ts",
+    "db:studio": "bun --bun drizzle-kit studio",
+    "db:copy-from-tidb": "node --env-file-if-exists=.env --import tsx scripts/migrate-from-tidb.ts",
+    "sitemap": "node --env-file-if-exists=.env --import tsx scripts/generate-sitemaps.ts",
     "postinstall": "wrangler types --strict-vars=false"
   },
   "dependencies": {
@@ -42,6 +41,7 @@
     "oxfmt": "^0.76.0",
     "oxlint": "^1.91.0",
     "oxlint-tsgolint": "^7.0.2005",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
     "vitest": "^5.1.0",

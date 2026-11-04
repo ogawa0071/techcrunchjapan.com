@@ -5,6 +5,7 @@ import { withDb } from '../db/client.server'
 import { jstDateParts } from '../lib/date'
 import { postPath } from '../lib/paths'
 import { toStoredSlug } from '../lib/slug'
+import { DEEP_PAGE, limitExpensiveQuery } from './limits.server'
 import * as queries from './queries.server'
 import type { PostDetail, PostPage } from './types'
 
@@ -49,11 +50,19 @@ const termInput = (data: TermInput): TermInput => ({
   page: toPage(data?.page),
 })
 
+/** Deep listing pages skip (and D1 bills) many rows: see limits.server.ts. */
+async function limitDeepPage(page: number): Promise<void> {
+  if (page >= DEEP_PAGE) await limitExpensiveQuery()
+}
+
 export const getLatestPosts = createServerFn({ method: 'GET' })
   .validator((data: PageInput): PageInput => ({ page: toPage(data?.page) }))
-  .handler(async ({ data }) =>
-    existingPage(await withDb((db) => queries.getLatestPosts(db, data.page))),
-  )
+  .handler(async ({ data }) => {
+    await limitDeepPage(data.page)
+    return existingPage(
+      await withDb((db) => queries.getLatestPosts(db, data.page)),
+    )
+  })
 
 export interface PostInput {
   year: string
@@ -118,6 +127,7 @@ export const getLegacyPostPath = createServerFn({ method: 'GET' })
 export const getCategoryPosts = createServerFn({ method: 'GET' })
   .validator(termInput)
   .handler(async ({ data }) => {
+    await limitDeepPage(data.page)
     const slug = toStoredSlug(data.slug)
     return existingPage(
       slug
@@ -129,6 +139,7 @@ export const getCategoryPosts = createServerFn({ method: 'GET' })
 export const getTagPosts = createServerFn({ method: 'GET' })
   .validator(termInput)
   .handler(async ({ data }) => {
+    await limitDeepPage(data.page)
     const slug = toStoredSlug(data.slug)
     return existingPage(
       slug
@@ -140,6 +151,7 @@ export const getTagPosts = createServerFn({ method: 'GET' })
 export const getAuthorPosts = createServerFn({ method: 'GET' })
   .validator(termInput)
   .handler(async ({ data }) => {
+    await limitDeepPage(data.page)
     const slug = toStoredSlug(data.slug)
     return existingPage(
       slug
@@ -158,8 +170,10 @@ export const searchPosts = createServerFn({ method: 'GET' })
     query: toText(data?.query, 100).trim(),
     page: toPage(data?.page),
   }))
-  .handler(async ({ data }) =>
-    existingPage(
+  .handler(async ({ data }) => {
+    // Every search may read the whole title index: see limits.server.ts.
+    await limitExpensiveQuery()
+    return existingPage(
       await withDb((db) => queries.searchPosts(db, data.query, data.page)),
-    ),
-  )
+    )
+  })

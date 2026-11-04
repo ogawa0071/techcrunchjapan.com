@@ -1,9 +1,12 @@
 /**
- * The D1 database of wrangler.jsonc (binding DB) for the Bun scripts.
+ * The D1 database of wrangler.jsonc (binding DB) for the scripts.
  *
  * - default: the local database that `bun run dev` uses (.wrangler/state)
  * - `--remote`: the production database, through a remote binding (`bunx wrangler login`
  *   first, or CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in the environment)
+ *
+ * The scripts run on Node.js (tsx, see package.json): wrangler's remote bindings do not
+ * work under the Bun runtime.
  */
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -26,6 +29,7 @@ export interface D1Connection {
 
 interface WranglerConfig {
   name?: string
+  account_id?: string
   compatibility_date?: string
   d1_databases: {
     binding: string
@@ -61,6 +65,11 @@ export async function connectD1(
     }
   }
 
+  if (process.versions.bun) {
+    throw new Error(
+      "--remote needs Node.js (wrangler's remote bindings do not work under Bun): run it through `bun run`, which starts the script with Node.js and tsx",
+    )
+  }
   // (Typed here: wrangler's declaration of the config type does not resolve.)
   const config: WranglerConfig = unstable_readConfig(
     { config: CONFIG_PATH },
@@ -69,11 +78,13 @@ export async function connectD1(
   const binding = config.d1_databases.find((d1) => d1.binding === 'DB')
   if (!binding?.database_id || PLACEHOLDER_ID.test(binding.database_id)) {
     throw new Error(
-      'Set d1_databases[0].database_id in wrangler.jsonc first (bunx wrangler d1 create techcrunchjapan --location apac)',
+      'Set d1_databases[0].database_id in wrangler.jsonc first (bunx wrangler d1 create techcrunchjapan --location apac --no-update-config)',
     )
   }
   // getPlatformProxy reaches only the bindings marked "remote": a throwaway config marks
-  // this one, so that `bun run dev` keeps using the local database.
+  // this one, so that `bun run dev` keeps using the local database. The remote binding
+  // runs through a temporary preview Worker, named apart from the production one.
+  const accountId = config.account_id ?? process.env.CLOUDFLARE_ACCOUNT_ID
   const dir = await mkdtemp(join(tmpdir(), 'techcrunchjapan-d1-'))
   const removeDir = () => rm(dir, { recursive: true, force: true })
   try {
@@ -81,7 +92,8 @@ export async function connectD1(
     await writeFile(
       configPath,
       JSON.stringify({
-        name: config.name,
+        name: `${config.name ?? 'techcrunchjapan'}-scripts`,
+        ...(accountId ? { account_id: accountId } : {}),
         compatibility_date: config.compatibility_date,
         d1_databases: [
           {

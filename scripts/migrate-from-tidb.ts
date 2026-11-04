@@ -260,7 +260,10 @@ async function main() {
   try {
     target = await connectD1()
     source = await mysql.createConnection(mysqlOptions(sourceUrl))
-    console.log(`Copying to the ${target.target}`)
+    const from = new URL(sourceUrl)
+    console.log(
+      `Copying ${from.host}${from.pathname} (MySQL) to the ${target.target}`,
+    )
     await copy(source, target.db, size)
   } finally {
     await source?.end().catch(() => {})
@@ -552,7 +555,11 @@ async function copy(source: mysql.Connection, db: Db, size: number) {
     )
     process.exitCode = 1
   }
-  console.log(`Done in ${((performance.now() - started) / 1000).toFixed(1)}s`)
+  // Size of the whole database (D1 reports it with every query).
+  const { meta } = await db.run(sql`SELECT 1`)
+  console.log(
+    `D1 database size: ${(meta.size_after / 1e6).toFixed(1)} MB. Done in ${((performance.now() - started) / 1000).toFixed(1)}s`,
+  )
 }
 
 try {

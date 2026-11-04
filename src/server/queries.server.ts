@@ -26,21 +26,22 @@ export const PAGE_SIZE = 20
 /** Width of the slug column in the old MySQL schema (Prisma's VARCHAR(191)); longer slugs were cut. */
 const LEGACY_SLUG_LENGTH = 191
 
-/** The JSON array built by `categoriesJson`. */
+/** The JSON array built by `categoriesJson`, ordered by id. */
 function parseCategories(value: unknown): CategoryRef[] {
   if (typeof value !== 'string') return []
   const list: CategoryRef[] = JSON.parse(value)
-  return list
+  // Sorted here rather than with ORDER BY inside the aggregate, which needs SQLite 3.44+
+  // (the version D1 runs is not documented).
+  return list.toSorted((a, b) => a.id - b.id)
 }
 
 /**
- * The categories of each post as a JSON array (ordered by id), so that a page is one
- * statement (one round trip to D1). SQLite evaluates it only for the returned rows.
+ * The categories of each post as a JSON array, so that a page is one statement (one
+ * round trip to D1). SQLite evaluates it only for the returned rows.
  */
 const categoriesJson = sql`(
   SELECT json_group_array(
     json_object('id', ${categories.id}, 'slug', ${categories.slug}, 'name', ${categories.name})
-    ORDER BY ${categories.id}
   )
   FROM ${postCategories}
   INNER JOIN ${categories} ON ${categories.id} = ${postCategories.categoryId}

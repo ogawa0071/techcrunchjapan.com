@@ -57,39 +57,43 @@ SOURCE_DATABASE_URL="mysql://USER:PASSWORD@HOST:4000/DB" bun run db:copy-from-ti
 bun run dev
 ```
 
-本番のデータで動かしたいときは、`wrangler.jsonc` の D1 バインディングに一時的に `"remote": true` を付けると、開発サーバーが本番の D1 を読みます（`bunx wrangler login` が必要です。アプリは DB に書き込みません）。
+本番のデータで動かしたいときは、`wrangler.jsonc` の D1 バインディングに一時的に `"remote": true` を付けると、開発サーバーが本番の D1 を読みます（`bunx wrangler login` が必要です。アプリは DB に書き込みません）。この変更はコミットしないでください。
+
+ローカルの D1 は `wrangler.jsonc` の `database_id` ごとに別のファイルです。本番の `database_id` を設定する（本番環境の構築の手順 2）と、ローカルは空のデータベースに切り替わるので、`bun run db:migrate` と記事データのコピーをやり直してください。本番環境を先に作ってから、ローカルの準備をすると一度で済みます。
 
 ### コマンド
 
-| コマンド                       | 内容                                                                            |
-| ------------------------------ | ------------------------------------------------------------------------------- |
-| `bun run dev`                  | 開発サーバー（Worker は workerd 上で動作）                                      |
-| `bun run build`                | 本番ビルド（`dist/`）                                                           |
-| `bun run preview`              | 本番ビルドをローカルの workerd で実行                                           |
-| `bun run deploy`               | ビルドして Cloudflare にデプロイ                                                |
-| `bun run check`                | 型チェック・lint・フォーマット・テストをまとめて実行                            |
-| `bun run typecheck`            | `wrangler types`（`worker-configuration.d.ts` の生成）+ `tsc -b`                |
-| `bun run lint` / `bun run fmt` | oxlint / oxfmt                                                                  |
-| `bun run test`                 | Vitest（単体テストと、ローカルの D1 を使ったクエリのテスト）                    |
-| `bun run db:generate`          | `src/db/schema.ts` の変更からマイグレーション SQL を生成                        |
-| `bun run db:migrate`           | マイグレーションをローカルの D1 に適用（`--remote` を付けると本番）             |
-| `bun run db:studio`            | Drizzle Studio（ローカルの D1。本番は `db:studio:remote`、`.env.example` 参照） |
-| `bun run db:copy-from-tidb`    | TiDB から D1 へデータをコピー（`--remote` を付けると本番。後述）                |
-| `bun run sitemap`              | `public/` のサイトマップを D1 から再生成（`--remote` を付けると本番）           |
+| コマンド                       | 内容                                                                  |
+| ------------------------------ | --------------------------------------------------------------------- |
+| `bun run dev`                  | 開発サーバー（Worker は workerd 上で動作）                            |
+| `bun run build`                | 本番ビルド（`dist/`）                                                 |
+| `bun run preview`              | 本番ビルドをローカルの workerd で実行                                 |
+| `bun run deploy`               | ビルドして Cloudflare にデプロイ                                      |
+| `bun run check`                | 型チェック・lint・フォーマット・テストをまとめて実行                  |
+| `bun run typecheck`            | `wrangler types`（`worker-configuration.d.ts` の生成）+ `tsc -b`      |
+| `bun run lint` / `bun run fmt` | oxlint / oxfmt                                                        |
+| `bun run test`                 | Vitest（単体テストと、ローカルの D1 を使ったクエリのテスト）          |
+| `bun run db:generate`          | `src/db/schema.ts` の変更からマイグレーション SQL を生成              |
+| `bun run db:migrate`           | マイグレーションをローカルの D1 に適用（`--remote` を付けると本番）   |
+| `bun run db:studio`            | Drizzle Studio（ローカルの D1）                                       |
+| `bun run db:copy-from-tidb`    | TiDB から D1 へデータをコピー（`--remote` を付けると本番。後述）      |
+| `bun run sitemap`              | `public/` のサイトマップを D1 から再生成（`--remote` を付けると本番） |
 
-`.env` は Bun で実行するスクリプト、drizzle-kit、wrangler / Vite（開発サーバー）がそれぞれ読み込みます。Worker には渡りません。
+`.env` は scripts/ のスクリプト、drizzle-kit、wrangler / Vite（開発サーバー）がそれぞれ読み込みます。Worker には渡りません。scripts/ のスクリプトは Node.js（tsx）で実行します（wrangler のリモートバインディングが Bun では動かないため。`bun run` から実行すれば意識する必要はありません）。
+
+本番の D1 の中身を見るには、`bunx wrangler d1 execute DB --remote --command "SELECT …"` か、Cloudflare ダッシュボードの D1 のコンソールを使います（Drizzle Studio はローカル専用です。Studio のローカルサーバーはどの Web ページからの SQL も受け付けるため、本番には向けません）。
 
 ## 本番環境の構築（初回のみ）
 
 1. **Workers Paid プラン**にします（[プラン](#プラン)を参照。D1 の容量と書き込み行数のため必要です）。
-2. **D1 データベースの作成**: 読者の多いアジア太平洋に作成し、表示された `database_id` を `wrangler.jsonc` の `d1_databases[0].database_id` に設定します。
+2. **D1 データベースの作成**: 読者の多いアジア太平洋に作成し、表示された `database_id` を `wrangler.jsonc` の `d1_databases[0].database_id` に貼り付けます（wrangler に設定ファイルを書き換えさせると、別のバインディングが追記され、書式も変わるため、`--no-update-config` を付けています）。ローカルの D1 はここで空のデータベースに切り替わります（[開発](#開発)を参照）。
 
    ```bash
    bunx wrangler login
    ```
 
    ```bash
-   bunx wrangler d1 create techcrunchjapan --location apac
+   bunx wrangler d1 create techcrunchjapan --location apac --no-update-config
    ```
 
 3. **テーブル作成**:
@@ -103,7 +107,8 @@ bun run dev
    - 本文はバインド変数で送るので、SQL 文の 100 KB の制限は受けません。D1 の 1 行 2 MB の上限を超える記事はスキップして一覧を表示し、終了コード 1 で終わります。
    - 最後に移行元と移行先の件数を照合し、合わなければ終了コード 1 で終わります。
    - TiDB への接続は TLS（証明書とホスト名を検証）です。
-   - 本番の D1 には wrangler の「リモートバインディング」で接続します（`bunx wrangler login` のセッション、または `.env` の `CLOUDFLARE_API_TOKEN` と `CLOUDFLARE_ACCOUNT_ID`）。
+   - 本番の D1 には wrangler の「リモートバインディング」で接続します（`bunx wrangler login` のセッション、または `.env` の `CLOUDFLARE_API_TOKEN` と `CLOUDFLARE_ACCOUNT_ID`）。接続のために一時的なプレビュー用 Worker（`techcrunchjapan-scripts`）がアップロードされます。
+   - 初めて実行するときは、使い捨ての D1 データベースで一度試してから本番に流すと安全です（`database_id` を一時的に差し替え、`BATCH_SIZE=20` などで実行）。
 
    ```bash
    SOURCE_DATABASE_URL="mysql://USER:PASSWORD@gateway01.ap-northeast-1.prod.aws.tidbcloud.com:4000/DB" bun run db:copy-from-tidb --remote
@@ -138,7 +143,7 @@ Git 連携の [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/b
 
 **Workers Paid プラン**（月 5 ドル〜）が必要です。
 
-- **D1**: 無料プランは 1 データベース 500 MB まで、書き込みは 1 日 10 万行、読み取りは 1 日 500 万行までです。SQLite は本文を圧縮しないため、TiDB で約 500 MB のデータは上限を超えるか、ぎりぎりになります（合成データの記事 6.5 万件では、本文と抜粋の合計 約 170 MB に対してデータベースは約 290 MB になりました）。インデックスへの書き込みも行数に数えられ（記事 1 件で 4 行）、データ移行だけで無料枠の数日分になります。上限に達すると、その日（UTC）のうちはキャッシュにないページを表示できなくなります。Paid プランは 1 データベース 10 GB まで、毎月 250 億行の読み取り、5,000 万行の書き込み、5 GB のストレージが料金に含まれ、このサイトの規模なら追加料金はかかりません。
+- **D1**: 無料プランは 1 データベース 500 MB まで、書き込みは 1 日 10 万行、読み取りは 1 日 500 万行までです。SQLite は本文を圧縮しないため、TiDB で約 500 MB のデータは上限を超えるか、ぎりぎりになります（合成データの記事 6.5 万件では、本文と抜粋の合計 約 170 MB に対してデータベースは約 290 MB になりました）。インデックスへの書き込みも行数に数えられ（記事 1 件で 4 行）、データ移行だけで無料枠の数日分になります。上限に達すると、その日（UTC）のうちはキャッシュにないページを表示できなくなります。Paid プランは 1 データベース 10 GB まで、毎月 250 億行の読み取り、5,000 万行の書き込み、5 GB のストレージが料金に含まれ、通常のアクセスなら追加料金はかかりません。ただし、どの記事にもヒットしない検索や深いページは 1 回で最大約 6.5 万行を読みます（含まれる枠で約 38 万回分、超えると 100 万回あたり約 65 ドル）。これらは D1 を一度に 1 つずつ処理するため、大量に送られるとサイト全体の表示も遅くなります。そのため件数を制限しています（[データベース（D1）](#データベースd1)）。念のため Cloudflare の請求の通知（Billing notifications）も設定しておくと安心です。
 - **CPU 時間**: 無料プランは 1 リクエストあたり 10ms で、キャッシュされていない長い記事のレンダリングが上限を超えることがあります（Error 1102）。データベースへのアクセス待ちは CPU 時間に含まれません。
 
 ## データベース（D1）
@@ -149,7 +154,8 @@ D1 は読み取った行数で課金され、その分だけ時間もかかる�
 - 1 ページの表示は D1 への問い合わせ 1 回です。各記事のカテゴリは JSON で同時に取得し、カテゴリ・タグ・著者のページは項目と記事一覧を `db.batch` でまとめて取得します。
 - 合成データ（記事 6.5 万件）での読み取り行数は、記事ページが 6 行、各一覧の 1 ページ目が約 200 行です。ページを深くたどるほど読み飛ばす行が増え、トップの最終ページで約 6.5 万行です。
 - タイトル検索は、Unicode の正規化（NFKC）と小文字化をしたタイトル（`posts.search_title`）を `instr()` で部分一致検索します。全角・半角や大文字・小文字の違いは無視されます。D1 の `LIKE` はパターンが 50 バイト（日本語で約 16 文字）までのため使っていません。どの記事にもヒットしない語では、全記事分のタイトルのインデックス（約 6.5 万行）を読みます。
-- 外部キーに `ON DELETE CASCADE` は付けていません。D1 ではマイグレーション中に外部キーを無効にできず、drizzle-kit がテーブルを作り直すマイグレーション（親テーブルの `DROP TABLE`）で関連の行がすべて消えてしまうためです。そうしたマイグレーションでは、`PRAGMA foreign_keys=OFF` を `PRAGMA defer_foreign_keys = ON` に書き換えてください（付けていないので、書き換え忘れても失敗するだけで、データは消えません）。
+- キャッシュにない検索と、50 ページ目以降の一覧は、Workers の [Rate Limiting](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/) で件数を制限しています。1 つの IP アドレス（IPv6 は /64）から 1 分あたり 20 回、全体で 1 分あたり 60 回（いずれも Cloudflare のデータセンターごと）までで、超えると 429 を返します（エッジにはキャッシュしません）。上限は `wrangler.jsonc` の `ratelimits` で変えられます。ドメインの切り替え後は、ゾーンの WAF のレート制限ルールを `/search/*` と `/_serverFn/*` に設定するとより確実です。
+- 外部キーに `ON DELETE CASCADE` は付けていません。D1 ではマイグレーション中に外部キーを無効にできず、drizzle-kit がテーブルを作り直すマイグレーション（親テーブルの `DROP TABLE`）で関連の行がすべて消えてしまうためです。そうしたマイグレーションでは、先頭の `PRAGMA foreign_keys=OFF;` を `PRAGMA defer_foreign_keys = ON;` に、テーブルの名前を変えた後の `PRAGMA foreign_keys=ON;` を `PRAGMA defer_foreign_keys = OFF;` に書き換え、適用後に `bunx wrangler d1 execute DB --command "PRAGMA foreign_key_check"`（本番は `--remote` も）が何も返さないことを確認してください。書き換えなかった場合はマイグレーションが失敗するだけで、データは消えません。
 - マイグレーションは wrangler が `d1_migrations` テーブルで管理します。`drizzle-kit migrate` / `push` は別の記録を使うので併用しないでください。
 - Drizzle は 1.0 の RC 版（`1.0.0-rc.5`）を、`drizzle-orm` と `drizzle-kit` で同じバージョンに固定しています。
 

@@ -47,22 +47,41 @@ function recordingD1(target: AnyD1Database, log: Statement[]) {
 
 type D1PreparedLike = ReturnType<AnyD1Database['prepare']>
 
-/** Rows read by the statements that `run` sends to D1. */
-async function rowsRead(run: (db: q.Database) => Promise<unknown>) {
+/**
+ * Rows read by the statements that `run` sends to D1, and their query plans
+ * (EXPLAIN QUERY PLAN), one string per statement.
+ */
+async function measure(run: (db: q.Database) => Promise<unknown>) {
   const log: Statement[] = []
   await run(drizzle(recordingD1(DB, log)))
-  const results = await Promise.all(
-    log.map(({ sql, params }) =>
-      DB.prepare(sql)
-        .bind(...params)
-        .all(),
+  const [results, plans] = await Promise.all([
+    Promise.all(
+      log.map(({ sql, params }) =>
+        DB.prepare(sql)
+          .bind(...params)
+          .all(),
+      ),
     ),
-  )
-  return results.reduce(
-    (sum: number, result: { meta: { rows_read: number } }) =>
-      sum + result.meta.rows_read,
-    0,
-  )
+    Promise.all(
+      log.map(({ sql, params }) =>
+        DB.prepare(`EXPLAIN QUERY PLAN ${sql}`)
+          .bind(...params)
+          .all(),
+      ),
+    ),
+  ])
+  return {
+    rowsRead: results.reduce(
+      (sum: number, result: { meta: { rows_read: number } }) =>
+        sum + result.meta.rows_read,
+      0,
+    ),
+    plan: plans
+      .map((plan: { results: { detail: string }[] }) =>
+        plan.results.map((step) => step.detail).join('\n'),
+      )
+      .join('\n'),
+  }
 }
 
 beforeAll(async () => {
@@ -113,37 +132,69 @@ afterAll(async () => {
   await proxy?.dispose()
 })
 
+// rows_read counts index entries but not table rows fetched through a non-covering index,
+// so each case also names the (covering) index that the page of ids must come from.
 it.each([
-  ['home, page 1', 300, (db: q.Database) => q.getLatestPosts(db, 1)],
-  ['home, page 10', 500, (db: q.Database) => q.getLatestPosts(db, 10)],
+  [
+    'home, page 1',
+    300,
+    'SCAN posts USING COVERING INDEX posts_created_at_id_search_title_idx',
+    (db: q.Database) => q.getLatestPosts(db, 1),
+  ],
+  [
+    'home, page 10',
+    500,
+    'SCAN posts USING COVERING INDEX posts_created_at_id_search_title_idx',
+    (db: q.Database) => q.getLatestPosts(db, 10),
+  ],
   [
     'big category, page 1',
     300,
+    'SEARCH post_categories USING COVERING INDEX post_categories_category_id_post_created_at_post_id_idx',
     (db: q.Database) => q.getCategoryPosts(db, 'category-1', 1),
   ],
   [
     'small category, page 1',
     300,
+    'SEARCH post_categories USING COVERING INDEX post_categories_category_id_post_created_at_post_id_idx',
     (db: q.Database) => q.getCategoryPosts(db, 'category-10', 1),
   ],
-  ['tag, page 1', 300, (db: q.Database) => q.getTagPosts(db, 'tag-7', 1)],
+  [
+    'tag, page 1',
+    300,
+    'SEARCH post_tags USING COVERING INDEX post_tags_tag_id_post_created_at_post_id_idx',
+    (db: q.Database) => q.getTagPosts(db, 'tag-7', 1),
+  ],
   [
     'author, page 1',
     300,
+    'SEARCH posts USING COVERING INDEX posts_author_id_created_at_id_idx',
     (db: q.Database) => q.getAuthorPosts(db, 'author-3', 1),
   ],
   [
     'search, frequent word',
     600,
+    'SCAN posts USING COVERING INDEX posts_created_at_id_search_title_idx',
     (db: q.Database) => q.searchPosts(db, 'funding', 1),
   ],
-  ['article', 50, (db: q.Database) => q.getPostBySlug(db, 'post-12345')],
-] as const)('%s: at most %i rows read', async (_label, limit, run) => {
-  expect(await rowsRead(run)).toBeLessThanOrEqual(limit)
+  [
+    'article',
+    50,
+    'SEARCH posts USING INDEX sqlite_autoindex_posts_1 (slug=?)',
+    (db: q.Database) => q.getPostBySlug(db, 'post-12345'),
+  ],
+] as const)('%s: at most %i rows read', async (_label, limit, index, run) => {
+  const { rowsRead, plan } = await measure(run)
+  expect(rowsRead).toBeLessThanOrEqual(limit)
+  expect(plan).toContain(index)
+  // The page of ids drives the lookups (no walk over every post in date order).
+  expect(plan).not.toContain('BLOOM FILTER')
 })
 
 it('scans at most the title index for a word that matches nothing', async () => {
-  expect(
-    await rowsRead((db) => q.searchPosts(db, 'zzz', 1)),
-  ).toBeLessThanOrEqual(POSTS + 50)
+  const { rowsRead, plan } = await measure((db) => q.searchPosts(db, 'zzz', 1))
+  expect(rowsRead).toBeLessThanOrEqual(POSTS + 50)
+  expect(plan).toContain(
+    'SCAN posts USING COVERING INDEX posts_created_at_id_search_title_idx',
+  )
 })

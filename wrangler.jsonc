@@ -40,6 +40,22 @@
     },
   ],
 
+  // Limits on uncached requests that make D1 read many rows: title searches and listing
+  // pages from DEEP_PAGE on (src/server/limits.server.ts). Counted per Cloudflare location.
+  // namespace_id: any number not used by another rate limiter in the account.
+  "ratelimits": [
+    {
+      "name": "QUERY_LIMIT_PER_CLIENT",
+      "namespace_id": "1001",
+      "simple": { "limit": 20, "period": 60 },
+    },
+    {
+      "name": "QUERY_LIMIT_TOTAL",
+      "namespace_id": "1002",
+      "simple": { "limit": 60, "period": 60 },
+    },
+  ],
+
   // Workers Cache: Cloudflare answers from a tiered cache without running the Worker, using
   // the Cloudflare-CDN-Cache-Control headers the Worker sends. Every request (static assets
   // included) is then billed as a Worker request. Set EDGE_CACHE to "none" when enabling it.

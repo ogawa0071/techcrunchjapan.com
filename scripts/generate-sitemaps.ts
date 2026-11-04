@@ -15,7 +15,8 @@ import { posts } from '../src/db/schema'
 import { datePath, startOfJstYear } from '../src/lib/date'
 import { postPath } from '../src/lib/paths'
 import { SITE_ORIGIN } from '../src/lib/site'
-import { connectD1 } from './lib/d1'
+import { connectD1, type D1Connection } from './lib/d1'
+import { describeError } from './lib/errors'
 
 const MAX_URLS_PER_SITEMAP = 50_000
 
@@ -31,9 +32,7 @@ const escapeXml = (value: string) =>
 
 const jstYear = (date: Date) => Number(datePath(date).slice(1, 5))
 
-const { db, target, close } = await connectD1()
-
-try {
+async function generate({ db, target }: D1Connection) {
   console.log(`Reading the ${target}`)
   const [range] = await db
     .select({ first: min(posts.createdAt), last: max(posts.createdAt) })
@@ -89,6 +88,15 @@ try {
     `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries.join('\n')}\n</sitemapindex>\n`,
   )
   console.log(`sitemap.xml: ${index.length} sitemaps → ${outDir}`)
+}
+
+let connection: D1Connection | undefined
+try {
+  connection = await connectD1()
+  await generate(connection)
+} catch (error) {
+  console.error(describeError(error))
+  process.exitCode = 1
 } finally {
-  await close()
+  await connection?.close().catch(() => {})
 }

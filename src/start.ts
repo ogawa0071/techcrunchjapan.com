@@ -11,7 +11,8 @@ import {
 
 /**
  * Unexpected server-function errors are serialized into an HTTP 200 reply by default,
- * which the edge cache would keep for 30 days. Give them a 5xx status instead.
+ * which the edge cache would keep for 30 days. Give them a 500 status instead, unless the
+ * code that threw set an error status itself (503 when D1 fails, 429 over a rate limit).
  * notFound() / redirect() are regular results and keep their 200.
  */
 const errorStatus = createMiddleware({ type: 'function' }).server(
@@ -22,7 +23,7 @@ const errorStatus = createMiddleware({ type: 'function' }).server(
       if (
         !isNotFound(error) &&
         !isRedirect(error) &&
-        getResponseStatus() < 500
+        getResponseStatus() < 400
       ) {
         setResponseStatus(500)
       }
