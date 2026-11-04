@@ -14,6 +14,10 @@ const CACHE_CONTROL: Partial<Record<number, string>> = {
 /** Request headers for which a part of a file (206) or no body (304) is the answer. */
 const PARTIAL_HEADERS = ['range', 'if-none-match', 'if-modified-since']
 
+/** If-None-Match values that R2 accepts (`*` or quoted ETags); it fails on anything else. */
+const ETAG_LIST =
+  /^[ \t]*(?:\*|(?:W\/)?"[^"]*"(?:[ \t]*,[ \t]*(?:W\/)?"[^"]*")*)[ \t]*$/
+
 type ByteRange = { offset: number; length?: number } | { suffix: number }
 
 /** What is used of an R2 object: R2Object, or R2ObjectBody (with `body`). */
@@ -44,13 +48,14 @@ export interface UploadCache {
  * the R2 bucket, served on this origin so that article HTML keeps its URLs. The query
  * (e.g. the theme's Jetpack resize parameters) never selects another file.
  *
- * With `cache` (Cache API), each data center keeps complete responses, which then also
- * answer Range and conditional requests; other misses are answered by R2 directly.
+ * Each data center keeps complete responses in `cache` (Cache API; its key has no deploy
+ * version and no query), which then also answer Range and conditional requests. Other
+ * misses are answered by R2 directly.
  */
 export async function serveUpload(
   request: Request,
   bucket: UploadBucket,
-  cache: UploadCache | undefined,
+  cache: UploadCache,
   ctx: { waitUntil(promise: Promise<unknown>): void },
 ): Promise<Response> {
   if (request.method !== 'GET') {
@@ -64,10 +69,13 @@ export async function serveUpload(
   const partial = new Headers()
   for (const name of PARTIAL_HEADERS) {
     const value = request.headers.get(name)
-    if (value) partial.set(name, value)
+    // A malformed If-None-Match is ignored, as a server may.
+    if (value && (name !== 'if-none-match' || ETAG_LIST.test(value))) {
+      partial.set(name, value)
+    }
   }
 
-  const cached = await cache?.match(new Request(cacheKey, { headers: partial }))
+  const cached = await cache.match(new Request(cacheKey, { headers: partial }))
   if (cached) return withEdgeCache(cached, 'HIT')
 
   const response = await fromBucket(bucket, uploadKey(url.pathname), partial)
@@ -75,7 +83,7 @@ export async function serveUpload(
   const cacheable =
     (response.status === 200 || response.status === 404) &&
     !response.headers.has('Content-Encoding')
-  if (cache && cacheable) {
+  if (cacheable) {
     ctx.waitUntil(cache.put(cacheKey, response.clone()))
     return withEdgeCache(response, 'MISS')
   }
@@ -88,14 +96,24 @@ async function fromBucket(
   partial: Headers,
 ): Promise<Response> {
   if (key === undefined) return notFound()
-  const range = parseRange(partial.get('range'))
+  const requested = parseRange(partial.get('range'))
+  // `bytes=0-` (how Chrome and Firefox start playing a video) asks for the whole file:
+  // answered with a complete 200 (a server may ignore Range), which can then be cached.
+  const wholeFile =
+    requested !== undefined &&
+    'offset' in requested &&
+    requested.offset === 0 &&
+    requested.length === undefined
+  const range = wholeFile ? undefined : requested
   let object: UploadObject | null
   try {
     object = await bucket.get(key, { onlyIf: partial, range })
   } catch (error) {
     // R2 rejects some ranges that start after the end of the file.
     const head = range && (await bucket.head(key).catch(() => null))
-    if (head) return rangeNotSatisfiable(head.size)
+    if (range && head && !byteSpan(range, head.size)) {
+      return rangeNotSatisfiable(head.size)
+    }
     console.error('R2 error', key, error)
     return new Response('Service Unavailable', {
       status: 503,
@@ -119,6 +137,7 @@ async function fromBucket(
   }
 
   let status = 200
+  let length = object.size
   if (range) {
     const span = byteSpan(range, object.size)
     if (!span) {
@@ -129,8 +148,11 @@ async function fromBucket(
       'Content-Range',
       `bytes ${span.start}-${span.end}/${object.size}`,
     )
+    length = span.end - span.start + 1
     status = 206
   }
+  // Also kept for HEAD, which src/server.ts answers without the body.
+  headers.set('Content-Length', String(length))
   return new Response(object.body, {
     status,
     headers: uploadHeaders(headers, status),
@@ -193,12 +215,15 @@ function notFound(): Response {
 function uploadHeaders(headers: Headers, status: number): Headers {
   headers.set('Cache-Control', CACHE_CONTROL[status] ?? 'no-store')
   // Uploaded files are data, never active content on this origin (e.g. an SVG or HTML
-  // file with scripts in the bucket).
+  // file with scripts in the bucket). Not for audio and video: opened directly, they play
+  // in a document of their own, which the policy would stop from loading them.
   headers.set('X-Content-Type-Options', 'nosniff')
-  headers.set(
-    'Content-Security-Policy',
-    "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox",
-  )
+  if (!/^(?:audio|video)\//i.test(headers.get('Content-Type') ?? '')) {
+    headers.set(
+      'Content-Security-Policy',
+      "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox",
+    )
+  }
   return headers
 }
 

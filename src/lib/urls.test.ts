@@ -69,12 +69,19 @@ describe('uploadKey', () => {
     expect(uploadKey(pathOf(raw))).toBe(key)
   })
 
-  it.each(['/wp-content/uploads/', '/wp-content/uploads/%E3%81.jpg'])(
-    'has no object for %s',
-    (raw) => {
-      expect(uploadKey(pathOf(raw))).toBeUndefined()
-    },
-  )
+  it.each([
+    '/wp-content/uploads/',
+    '/wp-content/uploads/%E3%81.jpg',
+    `/wp-content/uploads/${'a'.repeat(1025)}`,
+    `/wp-content/uploads/${'画'.repeat(342)}`,
+  ])('has no object for %s', (raw) => {
+    expect(uploadKey(pathOf(raw))).toBeUndefined()
+  })
+
+  it('accepts keys up to 1,024 bytes', () => {
+    const key = 'a'.repeat(1024)
+    expect(uploadKey(pathOf(`/wp-content/uploads/${key}`))).toBe(key)
+  })
 })
 
 const search = (query: string, path = '/') =>

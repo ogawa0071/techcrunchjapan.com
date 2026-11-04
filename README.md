@@ -57,7 +57,7 @@ SOURCE_DATABASE_URL="mysql://USER:PASSWORD@HOST:4000/DB" bun run db:copy-from-ti
 bun run dev
 ```
 
-本番のデータで動かしたいときは、`wrangler.jsonc` の D1 バインディングに一時的に `"remote": true` を付けると、開発サーバーが本番の D1 を読みます（`bunx wrangler login` が必要です。アプリは DB に書き込みません）。画像（`/wp-content/uploads/*`）もローカルの空の R2 バケットから読むため、開発サーバーでは表示されません。R2 バインディングに同じく `"remote": true` を付けると本番の画像が表示されます。これらの変更はコミットしないでください。
+本番のデータで動かしたいときは、`wrangler.jsonc` の D1 バインディングに一時的に `"remote": true` を付けると、開発サーバーが本番の D1 を読みます（`bunx wrangler login` が必要です。アプリは DB に書き込みません）。画像（`/wp-content/uploads/*`）もローカルの空の R2 バケットから読むため、開発サーバーでは表示されません。R2 バインディングに同じく `"remote": true` を付けると本番の画像が表示されます（すでに 404 になった画像は 1 日キャッシュされるので、`.wrangler/state/v3/cache` を削除し、ブラウザのキャッシュも消してから再読み込みしてください）。これらの変更はコミットしないでください。
 
 ローカルの D1 は `wrangler.jsonc` の `database_id` ごとに別のファイルです。本番の `database_id` を設定する（本番環境の構築の手順 2）と、ローカルは空のデータベースに切り替わるので、`bun run db:migrate` と記事データのコピーをやり直してください。本番環境を先に作ってから、ローカルの準備をすると一度で済みます。
 
@@ -126,7 +126,7 @@ bun run dev
    2. `wrangler.jsonc` の `routes`（カスタムドメイン）のコメントを外し、`workers_dev` を `false` にして再度デプロイします。DNS レコードと証明書は Cloudflare が作成します。
    3. www は Worker に割り当てず、ゾーンの Redirect Rules で `www.techcrunchjapan.com/*` を `https://techcrunchjapan.com/${1}`（301、クエリ文字列を保持）へ転送します。www には転送用の DNS レコード（プロキシ有効の `AAAA 100::` など）が必要です。
    4. Vercel で自動だった HTTPS への転送と HSTS は、Worker が HTTP のアクセスを HTTPS へリダイレクトし、`Strict-Transport-Security` ヘッダーを付けることで引き継いでいます。静的ファイルも含めて確実にするため、ゾーン設定の「Always Use HTTPS」も有効にしてください。
-   5. `/wp-content/uploads/*` を R2 に転送していた別の Worker と、そのルートを削除します（このアプリが R2 バインディングで配信します）。R2 の公開アクセス（`r2.techcrunchjapan.com`）もアプリでは使わなくなるので、ほかで使っていなければ無効にできます。
+   5. `/wp-content/uploads/*` を R2 に転送していた別の Worker と、そのルートを削除します（このアプリが R2 バインディングで配信します）。R2 の公開アクセス（`r2.techcrunchjapan.com`）もアプリでは使わなくなるので、ほかで使っていなければ無効にできます。ただし、この変更より前のバージョンは画像をそこから取得するため、そのバージョンへロールバックする可能性があるうちは残してください。
    6. 最後に Vercel のプロジェクトを削除します。
 
 8. **サイトマップの再生成**（任意）: 本番の D1 から `lastmod` 付きのサイトマップを作り直してコミットします。
@@ -137,7 +137,7 @@ bun run dev
 
 9. 動作を確認したら、TiDB のクラスタを削除します。D1 は Time Travel で過去 30 日の任意の時点に戻せます（`bunx wrangler d1 time-travel`）。
 
-Git 連携の [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/) を使う場合は、ビルドコマンドを `bun run build`、デプロイコマンドを `bunx wrangler deploy` にします（Bun のバージョンは `package.json` の `packageManager` で固定しています）。main 以外のブランチのビルドは既定で `npx wrangler preview` で Preview を作ります。Preview は本番と同じ D1・レート制限・変数を使います（`vite.config.ts` で本番の設定を `previews` にコピーしています）。
+Git 連携の [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/) を使う場合は、ビルドコマンドを `bun run build`、デプロイコマンドを `bunx wrangler deploy` にします（Bun のバージョンは `package.json` の `packageManager` で固定しています）。main 以外のブランチのビルドは既定で `npx wrangler preview` で Preview を作ります。Preview は本番と同じ D1・R2・レート制限・変数を使います（`vite.config.ts` で本番の設定を `previews` にコピーしています）。
 
 ### プラン
 
@@ -164,7 +164,7 @@ D1 は読み取った行数で課金され、その分だけ時間もかかる�
 - **静的ファイル**（`public/`、ビルド済み JS / CSS）は Worker を通らずに配信されます。キャッシュ期間は `public/_headers` で指定しています。
 - **ページと、クライアント遷移時のデータ（GET `/_serverFn/…`）** は、既定では Worker が Cache API でデータセンターごとに 30 日間キャッシュします（旧 ISR の `revalidate` と同じ）。404 は 1 日です。キャッシュキーにデプロイのバージョンを含めているため、デプロイすると新しいキャッシュに切り替わります。レスポンスヘッダー `X-Edge-Cache` で HIT / MISS を確認できます。ブラウザには毎回再検証させます（`Cache-Control: max-age=0`）。
 - Workers Paid プランなら Cloudflare の [Workers Cache](https://developers.cloudflare.com/workers/cache/) への切り替えをおすすめします。ヒット時は Worker を実行せずに階層型の共有キャッシュから返し、期限切れのページは裏で再生成されます（ISR と同じ動き）。`wrangler.jsonc` の `"cache": { "enabled": true }` のコメントを外し、`vars.EDGE_CACHE` を `"none"` にします。Worker はそのためのヘッダー（`Cloudflare-CDN-Cache-Control`）を常に付けています。注意点: Workers Cache を有効にすると静的ファイルへのリクエストも Worker のリクエストとして課金されます。また、キャッシュのキーはパスとクエリ文字列そのもの（ホストは含まない）なので、`utm_*` などが付いたアクセスは別エントリになり、www や HTTP の転送はゾーンのルール（上記）で行う必要があります。
-- **画像**（`/wp-content/uploads/*`）は R2 バインディングで読み、Cache API でデータセンターごとに 1 年間（404 は 1 日）キャッシュします。キャッシュキーにデプロイのバージョンを含めないので、デプロイしても消えません。動画などの Range リクエストや If-None-Match には、キャッシュにあればキャッシュが、なければ R2 が応答します。
+- **画像**（`/wp-content/uploads/*`）は R2 バインディングで読み、Cache API でデータセンターごとに 1 年間（404 は 1 日）キャッシュします（`EDGE_CACHE` の設定にかかわらず）。キャッシュキーにデプロイのバージョンもクエリ文字列も含めないので、デプロイしても消えず、サイズ違いの URL でも共有されます。Range リクエストや If-None-Match には、キャッシュにあればキャッシュが、なければ R2 が応答します。動画の再生開始（`Range: bytes=0-`）にはファイル全体を 200 で返すので、そこでキャッシュに入ります。
 
 ## 旧構成（Vercel + Next.js + TiDB + Prisma）からの変更点
 

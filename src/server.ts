@@ -163,8 +163,7 @@ async function respond(
   }
 
   if (url.pathname.startsWith('/wp-content/uploads/')) {
-    const cache = env.EDGE_CACHE === 'cache-api' ? caches.default : undefined
-    return serveUpload(request, env.UPLOADS, cache, ctx)
+    return serveUpload(request, env.UPLOADS, caches.default, ctx)
   }
 
   // A read-only site: every page and server function is a GET.
@@ -225,6 +224,9 @@ export default {
       ctx,
     )
     const result = new Response(isHead ? null : response.body, response)
+    // Release the unsent body, so that a cache write reading a clone of it does not have
+    // to keep everything it reads for this copy as well.
+    if (isHead) await response.body?.cancel()
     if (new URL(request.url).protocol === 'https:') {
       result.headers.set('Strict-Transport-Security', HSTS)
     }

@@ -48,18 +48,25 @@ export function canonicalPath(pathname: string): string {
   return path
 }
 
+/** Longest key R2 accepts, in bytes (UTF-8). */
+const MAX_KEY_BYTES = 1024
+
 /**
  * R2 key of a `/wp-content/uploads/…` request: the rest of the path, decoded as a public
  * bucket does (`%E7%94%BB%E5%83%8F.jpg` → `画像.jpg`), without leading slashes.
- * `undefined` when nothing is left or the path cannot be decoded.
+ * `undefined` when nothing is left, or the path cannot be a key (undecodable, too long).
  */
 export function uploadKey(pathname: string): string | undefined {
   const rest = pathname.slice(UPLOADS_PREFIX.length).replace(/^\/+/, '')
+  let key: string
   try {
-    return decodeURIComponent(rest) || undefined
+    key = decodeURIComponent(rest)
   } catch {
     return undefined
   }
+  if (!key || new TextEncoder().encode(key).length > MAX_KEY_BYTES)
+    return undefined
+  return key
 }
 
 /**

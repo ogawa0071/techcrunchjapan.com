@@ -67,8 +67,8 @@ interface File {
 }
 
 /**
- * Like the R2 binding: honours If-None-Match, returns the requested range, and rejects
- * ranges that start after the end of the file.
+ * Like the R2 binding: honours If-None-Match (and rejects malformed ones), returns the
+ * requested range, and rejects ranges that start after the end of the file.
  */
 function fakeBucket(files: Record<string, File>, failing = false) {
   const requested: string[] = []
@@ -76,6 +76,10 @@ function fakeBucket(files: Record<string, File>, failing = false) {
     get(key, { onlyIf, range }) {
       requested.push(key)
       if (failing) return Promise.reject(new Error('R2 is down'))
+      const ifNoneMatch = onlyIf.get('if-none-match')
+      if (ifNoneMatch && !/^\s*(?:\*|(?:W\/)?")/.test(ifNoneMatch)) {
+        return Promise.reject(new Error('Invalid ETag in if-none-match header'))
+      }
       const file = files[key]
       if (!file) return Promise.resolve(null)
       const { bytes, contentType, contentEncoding } = file
@@ -137,7 +141,10 @@ const ctx = {
 
 async function get(
   path: string,
-  { bucket, cache }: { bucket: UploadBucket; cache?: UploadCache },
+  {
+    bucket,
+    cache = fakeCache().cache,
+  }: { bucket: UploadBucket; cache?: UploadCache },
   init?: RequestInit,
 ) {
   const response = await serveUpload(
@@ -152,6 +159,7 @@ async function get(
 
 const files: Record<string, File> = {
   '2022/03/画像.png': { bytes: PNG, contentType: 'image/png' },
+  '2019/01/clip.mp4': { bytes: PNG, contentType: 'video/mp4' },
   '2020/05/data.json': {
     bytes: new Uint8Array([0x1f, 0x8b, 1, 2]),
     contentType: 'application/json',
@@ -176,6 +184,7 @@ describe('serveUpload', () => {
       etag: '"2022%2F03%2F%E7%94%BB%E5%83%8F.png"',
       'last-modified': 'Fri, 12 May 2023 00:00:00 GMT',
       'accept-ranges': 'bytes',
+      'content-length': '300',
       'cache-control': 'public, max-age=31536000, immutable',
       'x-content-type-options': 'nosniff',
       'x-edge-cache': 'MISS',
@@ -203,6 +212,8 @@ describe('serveUpload', () => {
     const { bucket, requested } = fakeBucket(files)
     expect((await get('', { bucket })).status).toBe(404)
     expect((await get('%E3%81.png', { bucket })).status).toBe(404)
+    // Longer than R2's 1,024-byte limit on keys.
+    expect((await get(`${'a'.repeat(1100)}.png`, { bucket })).status).toBe(404)
     expect(requested).toEqual([])
   })
 
@@ -216,6 +227,7 @@ describe('serveUpload', () => {
     )
     expect(response.status).toBe(206)
     expect(response.headers.get('content-range')).toBe('bytes 200-299/300')
+    expect(response.headers.get('content-length')).toBe('100')
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(PNG.slice(200))
     expect(stored.size).toBe(0)
   })
@@ -288,10 +300,44 @@ describe('serveUpload', () => {
     expect(response.headers.get('allow')).toBe('GET, HEAD')
   })
 
-  it('works without a cache (Workers Cache in front)', async () => {
+  it('answers `bytes=0-` (the start of a video) with the whole file, and caches it', async () => {
     const { bucket } = fakeBucket(files)
-    const response = await get(IMAGE, { bucket })
+    const { cache, stored } = fakeCache()
+    const response = await get(
+      '2019/01/clip.mp4',
+      { bucket, cache },
+      { headers: { Range: 'bytes=0-' } },
+    )
     expect(response.status).toBe(200)
-    expect(response.headers.has('x-edge-cache')).toBe(false)
+    expect(response.headers.get('content-length')).toBe('300')
+    expect(stored.size).toBe(1)
+  })
+
+  it('lets audio and video play when opened directly (no sandbox)', async () => {
+    const { bucket } = fakeBucket(files)
+    const response = await get('2019/01/clip.mp4', { bucket })
+    expect(response.headers.has('content-security-policy')).toBe(false)
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff')
+  })
+
+  it('ignores a malformed If-None-Match', async () => {
+    const { bucket } = fakeBucket(files)
+    const response = await get(
+      IMAGE,
+      { bucket },
+      { headers: { 'If-None-Match': 'abc' } },
+    )
+    expect(response.status).toBe(200)
+  })
+
+  it('fails with 503, not 416, when R2 fails a satisfiable range', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { bucket } = fakeBucket(files, true)
+    const response = await get(
+      IMAGE,
+      { bucket },
+      { headers: { Range: 'bytes=0-99' } },
+    )
+    expect(response.status).toBe(503)
   })
 })
