@@ -7,7 +7,25 @@
   // >= 2026-08-04. Dates >= 2026-11-17 switch on the new module registry and
   // Request.signal: re-test before moving past that.
   "compatibility_date": "2026-11-01",
-  "observability": { "enabled": true },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "redact_query_string": false,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "invocation_logs": true,
+      "persist": true,
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+    },
+    "issue_detection": {
+      "enabled": true,
+    },
+  },
 
   // The Worker has no secrets. Declaring none keeps the variables in .env (credentials of
   // the scripts, e.g. SOURCE_DATABASE_URL) out of the Worker env, `wrangler types` and dist/.
@@ -34,7 +52,7 @@
     {
       "binding": "DB",
       "database_name": "techcrunchjapan",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "92adb873-41bd-42e4-98ee-c42c7e8e62e6",
       "migrations_dir": "drizzle",
       "migrations_pattern": "drizzle/*/migration.sql",
     },
