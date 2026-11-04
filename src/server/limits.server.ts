@@ -5,7 +5,7 @@ import {
 } from '@tanstack/react-start/server'
 import { env } from 'cloudflare:workers'
 
-import { clientKey } from '../lib/client-key'
+import { clientKey, withinLimits } from '../lib/rate-limit'
 
 /** From this page on, a listing makes D1 read over 1,000 rows (skipped rows count too). */
 export const DEEP_PAGE = 50
@@ -19,13 +19,12 @@ export const DEEP_PAGE = 50
  * Over the limit, the request fails with 429, which the edge cache does not keep.
  */
 export async function limitExpensiveQuery(): Promise<void> {
-  const [perClient, total] = await Promise.all([
-    env.QUERY_LIMIT_PER_CLIENT.limit({
-      key: clientKey(getRequestHeader('cf-connecting-ip')),
-    }),
-    env.QUERY_LIMIT_TOTAL.limit({ key: 'total' }),
-  ])
-  if (perClient.success && total.success) return
+  const key = clientKey(getRequestHeader('cf-connecting-ip'))
+  if (
+    await withinLimits(env.QUERY_LIMIT_PER_CLIENT, env.QUERY_LIMIT_TOTAL, key)
+  ) {
+    return
+  }
   setResponseStatus(429)
   setResponseHeader('Retry-After', '60')
   setResponseHeader('Cache-Control', 'no-store')

@@ -27,7 +27,7 @@ src/
   lib/                 日付・URL・スラッグ・検索・SEO などの共通処理
 drizzle/               マイグレーション SQL（drizzle-kit で生成）
 scripts/               TiDB → D1 のデータ移行、サイトマップ生成
-test/                  ローカルの D1 を使ったクエリのテスト
+test/                  ローカルの D1 を使ったクエリのテスト、マイグレーションの確認
 public/                静的ファイル（テーマ CSS・画像、サイトマップ、ads.txt、robots.txt、_headers）
 ```
 
@@ -108,7 +108,7 @@ bun run dev
    - 最後に移行元と移行先の件数を照合し、合わなければ終了コード 1 で終わります。
    - TiDB への接続は TLS（証明書とホスト名を検証）です。
    - 本番の D1 には wrangler の「リモートバインディング」で接続します（`bunx wrangler login` のセッション、または `.env` の `CLOUDFLARE_API_TOKEN` と `CLOUDFLARE_ACCOUNT_ID`）。接続のために一時的なプレビュー用 Worker（`techcrunchjapan-scripts`）がアップロードされます。
-   - 初めて実行するときは、使い捨ての D1 データベースで一度試してから本番に流すと安全です（`database_id` を一時的に差し替え、`BATCH_SIZE=20` などで実行）。
+   - 本番の D1 はドメインを切り替えるまでどこからも使われないので、失敗しても直して再実行すれば済みます。最初からやり直す場合は、`bunx wrangler d1 delete techcrunchjapan` で削除して手順 2 から作り直します。
 
    ```bash
    SOURCE_DATABASE_URL="mysql://USER:PASSWORD@gateway01.ap-northeast-1.prod.aws.tidbcloud.com:4000/DB" bun run db:copy-from-tidb --remote
@@ -154,8 +154,8 @@ D1 は読み取った行数で課金され、その分だけ時間もかかる�
 - 1 ページの表示は D1 への問い合わせ 1 回です。各記事のカテゴリは JSON で同時に取得し、カテゴリ・タグ・著者のページは項目と記事一覧を `db.batch` でまとめて取得します。
 - 合成データ（記事 6.5 万件）での読み取り行数は、記事ページが 6 行、各一覧の 1 ページ目が約 200 行です。ページを深くたどるほど読み飛ばす行が増え、トップの最終ページで約 6.5 万行です。
 - タイトル検索は、Unicode の正規化（NFKC）と小文字化をしたタイトル（`posts.search_title`）を `instr()` で部分一致検索します。全角・半角や大文字・小文字の違いは無視されます。D1 の `LIKE` はパターンが 50 バイト（日本語で約 16 文字）までのため使っていません。どの記事にもヒットしない語では、全記事分のタイトルのインデックス（約 6.5 万行）を読みます。
-- キャッシュにない検索と、50 ページ目以降の一覧は、Workers の [Rate Limiting](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/) で件数を制限しています。1 つの IP アドレス（IPv6 は /64）から 1 分あたり 20 回、全体で 1 分あたり 60 回（いずれも Cloudflare のデータセンターごと）までで、超えると 429 を返します（エッジにはキャッシュしません）。上限は `wrangler.jsonc` の `ratelimits` で変えられます。ドメインの切り替え後は、ゾーンの WAF のレート制限ルールを `/search/*` と `/_serverFn/*` に設定するとより確実です。
-- 外部キーに `ON DELETE CASCADE` は付けていません。D1 ではマイグレーション中に外部キーを無効にできず、drizzle-kit がテーブルを作り直すマイグレーション（親テーブルの `DROP TABLE`）で関連の行がすべて消えてしまうためです。そうしたマイグレーションでは、先頭の `PRAGMA foreign_keys=OFF;` を `PRAGMA defer_foreign_keys = ON;` に、テーブルの名前を変えた後の `PRAGMA foreign_keys=ON;` を `PRAGMA defer_foreign_keys = OFF;` に書き換え、適用後に `bunx wrangler d1 execute DB --command "PRAGMA foreign_key_check"`（本番は `--remote` も）が何も返さないことを確認してください。書き換えなかった場合はマイグレーションが失敗するだけで、データは消えません。
+- キャッシュにない検索と、50 ページ目以降の一覧は、Workers の [Rate Limiting](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/) で件数を制限しています。1 つの IP アドレス（IPv6 は /64）から 1 分あたり 20 回、全体で 1 分あたり 60 回（いずれも Cloudflare のデータセンターごと）までで、超えると 429 を返します（エッジにはキャッシュしません）。IP ごとの上限を超えたリクエストは全体の回数に数えないので、1 つのクライアント（クローラーなど）が送り続けても、ほかの人の検索は止まりません。上限は `wrangler.jsonc` の `ratelimits` で変えられます。
+- 外部キーに `ON DELETE CASCADE` は付けていません。D1 ではマイグレーション中に外部キーを無効にできず、drizzle-kit がテーブルを作り直すマイグレーション（親テーブルの `DROP TABLE`）で関連の行がすべて消えてしまうためです。そうしたマイグレーションでは、drizzle-kit が作り直すテーブルごとに書く `PRAGMA foreign_keys=OFF;` をすべて `PRAGMA defer_foreign_keys = ON;` に、`PRAGMA foreign_keys=ON;` をすべて `PRAGMA defer_foreign_keys = OFF;` に書き換え（書き換え漏れは `test/migrations.test.ts` が検出します）、適用後に `bunx wrangler d1 execute DB --command "PRAGMA foreign_key_check"`（本番は `--remote` も）が何も返さないことを確認してください。書き換えなかった場合はマイグレーションが失敗するだけで、データは消えません。
 - マイグレーションは wrangler が `d1_migrations` テーブルで管理します。`drizzle-kit migrate` / `push` は別の記録を使うので併用しないでください。
 - Drizzle は 1.0 の RC 版（`1.0.0-rc.5`）を、`drizzle-orm` と `drizzle-kit` で同じバージョンに固定しています。
 

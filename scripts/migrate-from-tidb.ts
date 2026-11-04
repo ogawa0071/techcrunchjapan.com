@@ -449,10 +449,9 @@ async function copy(source: mysql.Connection, db: Db, size: number) {
     try {
       await runInBatches(db, statements)
     } catch (error) {
-      throw new Error(
-        `Copying posts ${postIds[0]}–${postIds.at(-1)} failed: ${describeError(error)}`,
-        { cause: error },
-      )
+      throw new Error(`Copying posts ${postIds[0]}–${postIds.at(-1)} failed`, {
+        cause: error,
+      })
     }
 
     for (const id of missingAuthors) {

@@ -26,3 +26,24 @@ export function clientKey(ip: string | undefined): string {
     .join(':')
   return `${prefix}::/64`
 }
+
+/** A Workers Rate Limiting binding: every allowed call counts toward the limit. */
+interface RateLimiter {
+  limit: (options: { key: string }) => Promise<{ success: boolean }>
+}
+
+/**
+ * Whether a request is under the client's limit and the shared total, counting it toward
+ * both. The total is asked only after the client's limit allowed the request, so that a
+ * client over its own limit cannot use up the budget of everyone else.
+ */
+export async function withinLimits(
+  perClient: RateLimiter,
+  total: RateLimiter,
+  key: string,
+): Promise<boolean> {
+  return (
+    (await perClient.limit({ key })).success &&
+    (await total.limit({ key: 'total' })).success
+  )
+}
