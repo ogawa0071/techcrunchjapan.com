@@ -7,8 +7,8 @@ import {
   canonicalPath,
   canonicalSearch,
   isFileLike,
-  uploadUrl,
 } from './lib/urls'
+import { serveUpload } from './server/uploads.server'
 
 declare global {
   // Route code is isomorphic, so tsconfig keeps the DOM lib, whose CacheStorage type
@@ -72,74 +72,6 @@ function canonicalOriginRedirect(url: URL): Response | undefined {
   return new Response(null, {
     status: 301,
     headers: { Location: location, 'Cache-Control': 'no-store' },
-  })
-}
-
-/** Upstream headers passed through for media; everything else (e.g. Set-Cookie) is dropped. */
-const UPLOAD_HEADERS = [
-  'accept-ranges',
-  'content-length',
-  'content-range',
-  'content-type',
-  'etag',
-  'last-modified',
-]
-
-/**
- * Media of the original WordPress site, stored in R2 (public bucket). Proxied rather
- * than redirected so that article HTML can keep its `/wp-content/uploads/…` URLs.
- */
-async function proxyUpload(
-  request: Request,
-  url: URL,
-  env: Env,
-): Promise<Response> {
-  if (request.method !== 'GET' && request.method !== 'HEAD') {
-    return new Response('Method Not Allowed', {
-      status: 405,
-      headers: { Allow: 'GET, HEAD' },
-    })
-  }
-  const upstream = uploadUrl(url.pathname, env.UPLOADS_ORIGIN)
-  const forwarded = new Headers()
-  for (const name of ['if-none-match', 'if-modified-since', 'range']) {
-    const value = request.headers.get(name)
-    if (value) forwarded.set(name, value)
-  }
-  const response = await fetch(upstream, {
-    method: request.method,
-    headers: forwarded,
-    // Uploads never change; misses and errors must not be pinned for a year.
-    cf: {
-      cacheEverything: true,
-      cacheTtlByStatus: { '200-299': YEAR, '404': DAY, '500-599': 0 },
-    },
-  })
-
-  const headers = new Headers()
-  for (const name of UPLOAD_HEADERS) {
-    const value = response.headers.get(name)
-    if (value) headers.set(name, value)
-  }
-  headers.set(
-    'Cache-Control',
-    response.status < 400
-      ? `public, max-age=${YEAR}, immutable`
-      : response.status === 404
-        ? `public, max-age=${DAY}`
-        : 'no-store',
-  )
-  // Uploaded files are data, never active content on this origin (e.g. an SVG or HTML
-  // file with scripts in the bucket).
-  headers.set('X-Content-Type-Options', 'nosniff')
-  headers.set(
-    'Content-Security-Policy',
-    "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox",
-  )
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
   })
 }
 
@@ -231,7 +163,7 @@ async function respond(
   }
 
   if (url.pathname.startsWith('/wp-content/uploads/')) {
-    return proxyUpload(request, url, env)
+    return serveUpload(request, env.UPLOADS, caches.default, ctx)
   }
 
   // A read-only site: every page and server function is a GET.
@@ -292,6 +224,9 @@ export default {
       ctx,
     )
     const result = new Response(isHead ? null : response.body, response)
+    // Release the unsent body, so that a cache write reading a clone of it does not have
+    // to keep everything it reads for this copy as well.
+    if (isHead) await response.body?.cancel()
     if (new URL(request.url).protocol === 'https:') {
       result.headers.set('Strict-Transport-Security', HSTS)
     }

@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "techcrunchjapan",
-  // Custom entry wrapping @tanstack/react-start/server-entry (redirects, media proxy, edge cache).
+  // Custom entry wrapping @tanstack/react-start/server-entry (redirects, media from R2, edge cache).
   "main": "src/server.ts",
   // Node.js compatibility (TanStack Start uses node:async_hooks) is on by default for dates
   // >= 2026-08-04. Dates >= 2026-11-17 switch on the new module registry and
@@ -32,9 +32,8 @@
   "secrets": { "required": [] },
 
   "vars": {
-    // Public R2 bucket holding the original WordPress uploads (/wp-content/uploads/*).
-    "UPLOADS_ORIGIN": "https://r2.techcrunchjapan.com/",
-    // "cache-api": the Worker caches pages per data center with the Cache API.
+    // "cache-api": the Worker caches pages per data center with the Cache API (uploads
+    // from R2 always are).
     // "none": leave caching to Workers Cache (enable "cache" below; Workers Paid recommended).
     "EDGE_CACHE": "cache-api",
   },
@@ -56,6 +55,12 @@
       "migrations_dir": "drizzle",
       "migrations_pattern": "drizzle/*/migration.sql",
     },
+  ],
+
+  // The uploads of the original WordPress site: /wp-content/uploads/<key> is the object
+  // <key> (src/server/uploads.server.ts). `bun run dev` uses an empty local bucket.
+  "r2_buckets": [
+    { "binding": "UPLOADS", "bucket_name": "techcrunchjapan-com" },
   ],
 
   // Limits on uncached requests that make D1 read many rows: title searches and listing

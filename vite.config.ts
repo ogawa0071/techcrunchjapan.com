@@ -10,8 +10,20 @@ export default defineConfig({
       viteEnvironment: { name: 'ssr' },
       // Previews (`wrangler preview`, which Workers Builds runs for branches other than
       // main) get only the bindings listed in `previews`: the same as production.
-      config: ({ vars, d1_databases, ratelimits, version_metadata }) => ({
-        previews: { vars, d1_databases, ratelimits, version_metadata },
+      config: ({
+        vars,
+        d1_databases,
+        r2_buckets,
+        ratelimits,
+        version_metadata,
+      }) => ({
+        previews: {
+          vars,
+          d1_databases,
+          r2_buckets,
+          ratelimits,
+          version_metadata,
+        },
       }),
     }),
     tanstackStart(),
