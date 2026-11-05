@@ -59,7 +59,7 @@
 
   // The uploads of the original WordPress site: /wp-content/uploads/<key> is the object
   // <key> (src/server/uploads.server.ts). `bun run dev` uses an empty local bucket.
-  "r2_buckets": [{ "binding": "UPLOADS", "bucket_name": "techcrunchjapan" }],
+  "r2_buckets": [{ "binding": "UPLOADS", "bucket_name": "techcrunchjapan-com" }],
 
   // Limits on uncached requests that make D1 read many rows: title searches and listing
   // pages from DEEP_PAGE on (src/server/limits.server.ts). Counted per Cloudflare location.
